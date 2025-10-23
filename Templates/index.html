@@ -1,0 +1,22 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <title>Controle de Estoque - Tabacaria</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+  <div class="container">
+    <header>
+      <img src="{{ url_for('static', filename='logo.png') }}" alt="Logo" class="logo">
+      <h1>Tabacaria Igaratinga</h1>
+      <p class="slogan">Sistema de controle de estoque</p>
+    </header>
+
+    <main>
+      <button onclick="window.location.href='/registrar'">📦 Registrar Produto</button>
+      <button onclick="window.location.href='/estoque'">📋 Ver Estoque</button>
+    </main>
+  </div>
+</body>
+</html>

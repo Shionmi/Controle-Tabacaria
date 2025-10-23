@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<title>Controle de Estoque - Tabacaria</title>
+</head>
+<body>
+<h1>Controle de Estoque - Tabacaria</h1>
+
+<h2>Adicionar Produto</h2>
+<input id="nome" placeholder="Nome">
+<input id="categoria" placeholder="Categoria">
+<input id="preco" type="number" step="0.01" placeholder="Preço">
+<input id="quantidade" type="number" placeholder="Quantidade">
+<button onclick="cadastrarProduto()">Adicionar</button>
+
+<h2>Estoque Atual</h2>
+<table border="1">
+  <thead>
+    <tr>
+      <th>Nome</th>
+      <th>Categoria</th>
+      <th>Preço</th>
+      <th>Quantidade</th>
+      <th>Código de Barras</th>
+      <th>Etiqueta</th>
+    </tr>
+  </thead>
+  <tbody id="tabela"></tbody>
+</table>
+
+<script>
+const API = '/api/produtos';
+
+async function carregarProdutos(){
+  const res = await fetch(API);
+  const produtos = await res.json();
+  const tbody = document.getElementById('tabela');
+  tbody.innerHTML = '';
+  produtos.forEach(p=>{
+    tbody.innerHTML += `<tr>
+      <td>${p.nome}</td>
+      <td>${p.categoria}</td>
+      <td>${p.preco.toFixed(2)}</td>
+      <td>${p.quantidade}</td>
+      <td>${p.codigo_barras}</td>
+      <td><img src="/static/barcodes/${p.codigo_barras}.png" width="150"></td>
+    </tr>`;
+  });
+}
+
+async function cadastrarProduto(){
+  const nome = document.getElementById('nome').value;
+  const categoria = document.getElementById('categoria').value;
+  const preco = parseFloat(document.getElementById('preco').value) || 0;
+  const quantidade = parseInt(document.getElementById('quantidade').value) || 0;
+
+  await fetch(API, {
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({nome, categoria, preco, quantidade})
+  });
+
+  document.getElementById('nome').value='';
+  document.getElementById('categoria').value='';
+  document.getElementById('preco').value='';
+  document.getElementById('quantidade').value='';
+  carregarProdutos();
+}
+
+carregarProdutos();
+</script>
+</body>
+</html>

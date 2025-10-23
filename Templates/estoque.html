@@ -1,0 +1,77 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <title>Estoque - Tabacaria</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+  <style>
+button {
+  background-color: #2d89ef;
+  color: white;
+  border: none;
+  padding: 6px 12px;
+  border-radius: 4px;
+  cursor: pointer;
+}
+button:hover {
+  background-color: #1e5fad;
+}
+</style>
+
+</head>
+<body>
+  <div class="container">
+    <h1>Estoque Atual</h1>
+    <button onclick="window.location.href='/'">⬅ Voltar</button>
+    <table>
+      <thead>
+        <tr>
+          <th>Nome</th>
+          <th>Categoria</th>
+          <th>Preço</th>
+          <th>Qtd</th>
+          <th>Código</th>
+          <th>Etiqueta</th>
+          <th>Ações</th>
+        </tr>
+      </thead>
+      <tbody id="tabela"></tbody>
+    </table>
+  </div>
+
+  <script>
+  async function carregarProdutos(){
+    const res = await fetch('/api/produtos');
+    const produtos = await res.json();
+    const tbody = document.getElementById('tabela');
+    tbody.innerHTML = '';
+    produtos.forEach(p=>{
+      tbody.innerHTML += `<tr>
+        <td>${p.nome}</td>
+        <td>${p.categoria}</td>
+        <td>R$ ${p.preco.toFixed(2)}</td>
+        <td>${p.quantidade}</td>
+        <td>${p.codigo_barras}</td>
+        <td>
+            <img src="/static/barcodes/${p.codigo_barras}.png" width="150"><br>
+            <button onclick="imprimirEtiqueta(${p.id_produto})">🖨️ Imprimir</button>
+        </td>
+        <td><button onclick="editar(${p.id_produto})">Editar</button></td>
+      </tr>`;
+    });
+  }
+
+  function editar(id){
+    alert('Função de edição ainda em desenvolvimento. ID: ' + id);
+  }
+
+  carregarProdutos();
+
+  function imprimirEtiqueta(id) {
+  window.open(`/imprimir_etiqueta/${id}`, '_blank');
+}
+
+  </script>
+  
+</body>
+</html>

@@ -16,7 +16,7 @@ Este arquivo descreve passo-a-passo o que você precisa instalar e configurar no
 2. Navegue até a pasta do projeto:
 
 ```powershell
-cd 'C:\Users\henri\OneDrive\Documentos\Faculdade\projetos\Tabacaria\Estoque_Tabacaria'
+
 ```
 
 3. Crie e ative um ambiente virtual Python (recomendado):

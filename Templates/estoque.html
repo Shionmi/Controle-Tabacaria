@@ -1,77 +1,249 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-  <meta charset="utf-8">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Estoque - Tabacaria</title>
+  <!-- DataTables CSS e JS -->
+<link rel="stylesheet" href="https://cdn.datatables.net/1.13.5/css/jquery.dataTables.min.css">
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script src="https://cdn.datatables.net/1.13.5/js/jquery.dataTables.min.js"></script>
   <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
-  <style>
-button {
-  background-color: #2d89ef;
-  color: white;
-  border: none;
-  padding: 6px 12px;
-  border-radius: 4px;
-  cursor: pointer;
-}
-button:hover {
-  background-color: #1e5fad;
-}
-</style>
-
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jsbarcode/3.11.5/JsBarcode.all.min.js"></script>
 </head>
 <body>
-  <div class="container">
-    <h1>Estoque Atual</h1>
-    <button onclick="window.location.href='/'">⬅ Voltar</button>
-    <table>
-      <thead>
-        <tr>
-          <th>Nome</th>
-          <th>Categoria</th>
-          <th>Preço</th>
-          <th>Qtd</th>
-          <th>Código</th>
-          <th>Etiqueta</th>
-          <th>Ações</th>
-        </tr>
-      </thead>
-      <tbody id="tabela"></tbody>
-    </table>
-  </div>
+    <div class="container">
+    <div class="header">
+      <img src="{{ url_for('static', filename='Images/Logo_tabacaria.png') }}" alt="Logo" class="logo">
+      <div>
+        <h1>Tabacaria - Estoque</h1>
+        <p style="color:#999; margin-top:6px;">Visualização do estoque atual</p>
+      </div>
+      <div class="header-actions">
+        <button class="btn btn-ghost" onclick="window.location.href='/fornecedor'">🤝 Fornecedor</button>
+        <button class="btn btn-secondary" onclick="window.location.href='/'">⬅ Voltar</button>
+      </div>
+    </div>
 
-  <script>
-  async function carregarProdutos(){
+    <div class="panel">
+      <h2 style="margin-bottom:18px; border-bottom:3px solid #667eea; padding-bottom:8px;">📋 Estoque Atual</h2>
+      <div style="overflow-x:auto">
+        <table id="tabelaEstoque">
+          <thead>
+          <tr>
+            <th>Nome</th>
+            <th>Categoria</th>
+            <th>Preço</th>
+            <th>Qtd</th>
+            <th>Código</th>
+            <th>Etiqueta</th>
+            <th style="width:180px">Ações</th>
+          </tr>
+          </thead>
+          <tbody id="tabela"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Modal de Edição -->
+    <div class="modal" id="editModal">
+      <div class="modal-content">
+        <h3>Editar Produto</h3>
+        <div class="form-group">
+          <label>Nome</label>
+          <input id="editName" type="text">
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>Categoria</label>
+            <input id="editCategory" type="text">
+          </div>
+          <div class="form-group">
+            <label>Preço (R$)</label>
+            <input id="editPrice" type="number" step="0.01">
+          </div>
+        </div>
+        <div class="form-group">
+          <label>Quantidade</label>
+          <input id="editQuantity" type="number">
+        </div>
+        <div class="btn-group">
+          <button class="btn-primary" id="saveEditBtn">Salvar</button>
+          <button class="btn-secondary" onclick="closeEditModal()">Cancelar</button>
+        </div>
+      </div>
+    </div>
+    <!-- Modal de Impressão (mesma página) -->
+    <div class="modal" id="printModal">
+      <div class="modal-content print-modal-content">
+        <div class="print-area" id="printArea">
+          <img id="printBarcodeImg" src="" alt="Código de barras" style="width:100%;height:auto;">
+        </div>
+        <div style="text-align:center;margin-top:12px">
+          <button class="btn btn-secondary" onclick="closePrintModal()">Fechar</button>
+        </div>
+      </div>
+    </div>
+    </div>
+
+    <script src="{{ url_for('static', filename='js/common.js') }}"></script>
+    <script>
+    async function carregarProdutos(){
+      try {
+        const res = await fetch('/api/produtos');
+        if (!res.ok) throw new Error('Erro ao carregar');
+        const produtos = await res.json();
+        const tbody = document.getElementById('tabela');
+        tbody.innerHTML = '';
+        produtos.forEach(p=>{
+          tbody.innerHTML += `<tr>
+            <td>${p.nome}</td>
+            <td>${p.categoria || ''}</td>
+            <td>R$ ${Number(p.preco).toFixed(2)}</td>
+            <td>${p.quantidade}</td>
+            <td>${p.codigo_barras || ''}</td>
+            <td>
+                <img src="/static/barcodes/${p.codigo_barras}.png" width="120" alt="etiqueta" onerror="this.style.display='none'"> <br>
+                <button class="btn-primary" onclick="imprimirEtiqueta(${p.id_produto})">🖨️ Imprimir</button>
+            </td>
+            <td>
+                <button class="btn-primary" onclick="openEditModal(${p.id_produto})">✏️ Editar</button>
+                <button class="btn-danger" onclick="deleteProductFromTable(${p.id_produto})">🗑️ Remover</button>
+            </td>
+          </tr>`;
+        });
+      } catch (err) {
+        console.error(err);
+        const tbody = document.getElementById('tabela');
+        tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:#999">Erro ao carregar produtos</td></tr>';
+      }
+    }
+
+    function openEditModal(id) {
+      // busca produto atual
+      fetch('/api/produtos')
+        .then(r=>r.json())
+        .then(list=>{
+          const p = list.find(x=>x.id_produto===id);
+          if (!p) return alert('Produto não encontrado');
+          document.getElementById('editName').value = p.nome || '';
+          document.getElementById('editCategory').value = p.categoria || '';
+          document.getElementById('editPrice').value = Number(p.preco || 0).toFixed(2);
+          document.getElementById('editQuantity').value = p.quantidade || 0;
+          document.getElementById('editModal').classList.add('active');
+          document.getElementById('saveEditBtn').onclick = () => saveEdit(id);
+        })
+        .catch(err=>{ console.error(err); alert('Erro ao obter produto'); });
+    }
+
+    function closeEditModal(){ document.getElementById('editModal').classList.remove('active'); }
+      function closePrintModal(){ document.getElementById('printModal').classList.remove('active'); }
+
+    async function saveEdit(id){
+      const nome = document.getElementById('editName').value.trim();
+      const categoria = document.getElementById('editCategory').value.trim();
+      const preco = parseFloat(document.getElementById('editPrice').value) || 0;
+      const quantidade = parseInt(document.getElementById('editQuantity').value) || 0;
+      if(!nome){ alert('Nome obrigatório'); return; }
+      try{
+        const res = await fetch(`/api/produtos/${id}`, {
+          method:'PUT', headers:{'Content-Type':'application/json'},
+          body: JSON.stringify({nome, categoria, preco, quantidade})
+        });
+        if (!res.ok) {
+          const data = await res.json().catch(()=>({erro:'erro'}));
+          throw new Error(data.erro || 'Falha ao salvar');
+        }
+        closeEditModal();
+        carregarProdutos();
+        alert('Produto atualizado');
+      } catch (err){ console.error(err); alert('Erro ao atualizar produto'); }
+    }
+
+    async function deleteProductFromTable(id){
+      if(!confirm('Confirmar remoção deste produto?')) return;
+      try{
+        const res = await fetch(`/api/produtos/${id}`, { method:'DELETE' });
+        if (!res.ok) throw new Error('Falha ao remover');
+        carregarProdutos();
+      } catch(err){ console.error(err); alert('Erro ao remover produto'); }
+    }
+
+    carregarProdutos();
+
+  async function imprimirEtiqueta(id) {
+    try{
+      // Garante que o PNG exista e recupera caminho
+      const res = await fetch(`/api/generate_barcode/${id}`);
+      if(!res.ok) throw new Error('Não foi possível gerar etiqueta');
+      const data = await res.json();
+  const img = document.getElementById('printBarcodeImg');
+  img.src = data.path + '?_t=' + Date.now(); // bust cache
+      const modal = document.getElementById('printModal');
+      modal.classList.add('active');
+
+      // Handler after print to close modal
+      const after = function(){
+        modal.classList.remove('active');
+        window.removeEventListener('afterprint', after);
+      };
+      window.addEventListener('afterprint', after);
+
+      // Aguarda um pouco para garantir renderização e abre diálogo de impressão
+      setTimeout(()=>{
+        try{ window.print(); }catch(e){ console.error(e); }
+      }, 300);
+    }catch(err){ console.error(err); alert('Erro ao preparar etiqueta: '+(err.message||err)); }
+  }
+
+    // Recarregar tabela com DataTables
+let tabelaDT;
+
+async function carregarProdutos(){
+  try {
     const res = await fetch('/api/produtos');
+    if (!res.ok) throw new Error('Erro ao carregar');
     const produtos = await res.json();
     const tbody = document.getElementById('tabela');
     tbody.innerHTML = '';
+
     produtos.forEach(p=>{
       tbody.innerHTML += `<tr>
         <td>${p.nome}</td>
-        <td>${p.categoria}</td>
-        <td>R$ ${p.preco.toFixed(2)}</td>
+        <td>${p.categoria || ''}</td>
+        <td>R$ ${Number(p.preco).toFixed(2)}</td>
         <td>${p.quantidade}</td>
-        <td>${p.codigo_barras}</td>
+        <td>${p.codigo_barras || ''}</td>
         <td>
-            <img src="/static/barcodes/${p.codigo_barras}.png" width="150"><br>
-            <button onclick="imprimirEtiqueta(${p.id_produto})">🖨️ Imprimir</button>
+            <img src="/static/barcodes/${p.codigo_barras}.png" width="120" alt="etiqueta" onerror="this.style.display='none'"> <br>
+            <button class="btn-primary" onclick="imprimirEtiqueta(${p.id_produto})">🖨️ Imprimir</button>
         </td>
-        <td><button onclick="editar(${p.id_produto})">Editar</button></td>
+        <td>
+            <button class="btn-primary" onclick="openEditModal(${p.id_produto})">✏️ Editar</button>
+            <button class="btn-danger" onclick="deleteProductFromTable(${p.id_produto})">🗑️ Remover</button>
+        </td>
       </tr>`;
     });
+
+    // Reaplicar DataTable
+    if (tabelaDT) {
+      tabelaDT.destroy();
+    }
+    tabelaDT = new DataTable('#tabelaEstoque', {
+      language: {
+        url: 'https://cdn.datatables.net/plug-ins/1.13.5/i18n/pt-BR.json'
+      },
+      pageLength: 10,
+      ordering: true,
+      responsive: true
+    });
+
+  } catch (err) {
+    console.error(err);
+    document.getElementById('tabela').innerHTML = '<tr><td colspan="7">Erro ao carregar produtos</td></tr>';
   }
-
-  function editar(id){
-    alert('Função de edição ainda em desenvolvimento. ID: ' + id);
-  }
-
-  carregarProdutos();
-
-  function imprimirEtiqueta(id) {
-  window.open(`/imprimir_etiqueta/${id}`, '_blank');
 }
 
-  </script>
-  
+    </script>
 </body>
 </html>

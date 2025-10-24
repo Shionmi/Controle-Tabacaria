@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Etiqueta - {{ codigo_barras }}</title>
+  <style>
+    body{ margin:0; padding:18px; font-family: Arial, Helvetica, sans-serif; text-align:center }
+    .label{ display:inline-block; padding:12px; border-radius:8px; background:#fff; box-shadow:0 6px 18px rgba(0,0,0,0.08) }
+    img{ max-width:360px; width:100%; height:auto }
+
+    .small{ color:#666; font-size:13px }
+    button{ display:inline-block; margin-top:12px; padding:8px 12px }
+  </style>
+</head>
+<body>
+  <div class="label">
+  <img src="{{ url_for('static', filename='barcodes/' + codigo_barras + '.png') }}" alt="{{ codigo_barras }}">
+  </div>
+
+  <script>
+    // Abre o diálogo de impressão automaticamente
+    window.addEventListener('load', ()=>{
+      setTimeout(()=>{
+        try{ window.print(); }catch(e){}
+      }, 250);
+    });
+  </script>
+</body>
+</html>

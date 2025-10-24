@@ -1,22 +1,29 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-  <meta charset="utf-8">
-  <title>Controle de Estoque - Tabacaria</title>
-  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Controle de Estoque - Tabacaria</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
 <body>
-  <div class="container">
-    <header>
-      <img src="{{ url_for('static', filename='logo.png') }}" alt="Logo" class="logo">
-      <h1>Tabacaria Igaratinga</h1>
-      <p class="slogan">Sistema de controle de estoque</p>
-    </header>
+    <div class="container">
+        <div class="header">
+            <img src="{{ url_for('static', filename='Images/Logo_tabacaria.png') }}" alt="Logo" class="logo">
+            <div>
+                <h1 style="font-size:20px;">Tabacaria Igaratinga</h1>
+                <p style="color:#999;margin-top:6px">Sistema de controle de estoque</p>
+            </div>
+        </div>
 
-    <main>
-      <button onclick="window.location.href='/registrar'">📦 Registrar Produto</button>
-      <button onclick="window.location.href='/estoque'">📋 Ver Estoque</button>
-    </main>
-  </div>
+        <div class="panel">
+            <h2 style="margin-bottom:16px;padding-bottom:8px">Início</h2>
+            <div class="actions">
+                <button class="btn btn-primary" onclick="window.location.href='/registrar'">📦 Registrar Produto</button>
+                <button class="btn btn-secondary" onclick="window.location.href='/estoque'">📋 Ver Estoque</button>
+                <button class="btn btn-ghost" onclick="window.location.href='/fornecedor'">🤝 Fornecedor</button>
+            </div>
+        </div>
+    </div>
 </body>
 </html>

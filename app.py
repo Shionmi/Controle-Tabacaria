@@ -59,10 +59,40 @@ def imprimir_etiqueta(id_produto):
         mimetype='application/pdf'
     )
 
-DB = 'estoque_tabacaria.db'
-os.makedirs('static/barcodes', exist_ok=True)
 
-# ===== Função para conectar ao banco =====
+@app.route('/imprimir_etiqueta_html/<int:id_produto>')
+def imprimir_etiqueta_html(id_produto):
+    # Renderiza uma página simples com a imagem do código de barras e dispara window.print()
+    conn = get_db()
+    cur = conn.cursor()
+    cur.execute("SELECT nome, codigo_barras FROM produtos WHERE id_produto=?", (id_produto,))
+    produto = cur.fetchone()
+    conn.close()
+
+    if not produto:
+        return "Produto não encontrado", 404
+
+    nome, codigo_barras = produto
+    caminho_png = f'static/barcodes/{codigo_barras}.png'
+
+    # Garante que o arquivo PNG exista (gera se necessário)
+    if not os.path.exists(caminho_png):
+        try:
+            from barcode import Code128
+            from barcode.writer import ImageWriter
+            ean = Code128(codigo_barras, writer=ImageWriter())
+            ean.save(f'static/barcodes/{codigo_barras}')
+        except Exception:
+            pass
+
+    return render_template('print_label.html', nome=nome, codigo_barras=codigo_barras)
+
+# Configurações da aplicação
+DB = 'estoque_tabacaria.db'
+BARCODE_DIR = os.path.join('static', 'barcodes')
+os.makedirs(BARCODE_DIR, exist_ok=True)
+
+# ===== Função para conectar ao banco de dados =====
 def get_db():
     conn = sqlite3.connect(DB)
     conn.row_factory = sqlite3.Row
@@ -82,6 +112,11 @@ def registrar():
 @app.route('/estoque')
 def estoque():
     return render_template('estoque.html')
+
+
+@app.route('/fornecedor')
+def fornecedor():
+    return render_template('fornecedor.html')
 
 # ===== API para listar produtos =====
 @app.route('/api/produtos', methods=['GET'])
@@ -133,5 +168,84 @@ def adicionar_produto():
         "codigo_barras": codigo_def
     }), 201
 
+
+@app.route('/api/produtos/<int:id_produto>', methods=['PUT'])
+def atualizar_produto(id_produto):
+    data = request.json or {}
+    nome = data.get('nome', '').strip()
+    categoria = data.get('categoria', '').strip()
+    preco = float(data.get('preco', 0.0))
+    quantidade = int(data.get('quantidade', 0))
+
+    if not nome:
+        return jsonify({"erro": "O nome do produto é obrigatório."}), 400
+
+    conn = get_db()
+    cur = conn.cursor()
+    cur.execute("SELECT id_produto FROM produtos WHERE id_produto=?", (id_produto,))
+    if not cur.fetchone():
+        conn.close()
+        return jsonify({"erro": "Produto não encontrado."}), 404
+
+    cur.execute("UPDATE produtos SET nome=?, categoria=?, preco=?, quantidade=? WHERE id_produto=?",
+                (nome, categoria, preco, quantidade, id_produto))
+    conn.commit()
+    conn.close()
+    return jsonify({"mensagem": "Produto atualizado com sucesso."})
+
+
+@app.route('/api/produtos/<int:id_produto>', methods=['DELETE'])
+def deletar_produto(id_produto):
+    conn = get_db()
+    cur = conn.cursor()
+    cur.execute("SELECT id_produto FROM produtos WHERE id_produto=?", (id_produto,))
+    if not cur.fetchone():
+        conn.close()
+        return jsonify({"erro": "Produto não encontrado."}), 404
+
+    cur.execute("DELETE FROM produtos WHERE id_produto=?", (id_produto,))
+    conn.commit()
+    conn.close()
+    return jsonify({"mensagem": "Produto removido com sucesso."})
+
+
+@app.route('/api/generate_barcode/<int:id_produto>', methods=['GET'])
+def api_generate_barcode(id_produto):
+    """Garante que exista o PNG do barcode e retorna o código e nome do produto."""
+    conn = get_db()
+    cur = conn.cursor()
+    cur.execute("SELECT nome, codigo_barras FROM produtos WHERE id_produto=?", (id_produto,))
+    row = cur.fetchone()
+    conn.close()
+
+    if not row:
+        return jsonify({"erro": "Produto não encontrado."}), 404
+
+    nome, codigo_barras = row
+    caminho_png = os.path.join('static', 'barcodes', f"{codigo_barras}.png")
+
+    if not os.path.exists(caminho_png):
+        try:
+            from barcode import Code128
+            from barcode.writer import ImageWriter
+            ean = Code128(codigo_barras, writer=ImageWriter())
+            ean.save(os.path.join('static', 'barcodes', f"{codigo_barras}"))
+        except Exception as e:
+            return jsonify({"erro": "Falha ao gerar imagem do código de barras.", "detalhe": str(e)}), 500
+
+    return jsonify({"nome": nome, "codigo_barras": codigo_barras, "path": f"/static/barcodes/{codigo_barras}.png"})
+
+# Tratamento de erros HTTP
+@app.errorhandler(404)
+def not_found_error(error):
+    return render_template('error.html', error='Página não encontrada'), 404
+
+@app.errorhandler(500)
+def internal_error(error):
+    return render_template('error.html', error='Erro interno do servidor'), 500
+
 if __name__ == '__main__':
+    # Em produção, use waitress ou outro servidor WSGI
+    # from waitress import serve
+    # serve(app, host='0.0.0.0', port=8000)
     app.run(debug=True)

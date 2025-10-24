@@ -1,68 +1,101 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-  <meta charset="utf-8">
-  <title>Registrar Produto</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Registrar Produto - Tabacaria</title>
   <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
 <body>
-  <div class="container">
-    <h1>Registrar Novo Produto</h1>
+    <div class="container">
+        <div class="header">
+          <img src="{{ url_for('static', filename='Images/Logo_tabacaria.png') }}" alt="Logo" class="logo">
+            <div>
+                <h1 style="font-size:20px;">Registrar Novo Produto</h1>
+                <p style="color:#999;margin-top:6px">Preencha os dados do produto</p>
+            </div>
+            <div class="header-actions">
+              <button class="btn btn-secondary" onclick="window.location.href='/'">Início</button>
+              <button class="btn btn-secondary" onclick="window.location.href='/estoque'">Estoque</button>
+              <button class="btn btn-ghost" onclick="window.location.href='/fornecedor'">Fornecedor</button>
+            </div>
+        </div>
 
-    <form id="form-produto">
-      <input id="nome" placeholder="Nome do produto" required>
-      <input id="categoria" placeholder="Categoria">
-      <input id="preco" type="number" step="0.01" placeholder="Preço">
-      <input id="quantidade" type="number" placeholder="Quantidade">
-      <button type="submit">Salvar</button>
-      <button type="button" onclick="window.location.href='/'">Voltar</button>
-    </form>
+    <div class="panel">
+      <h2 style="margin-bottom:16px;padding-bottom:8px">📝 Cadastro de Produto</h2>
 
-    <p id="mensagem"></p>
-  </div>
+            <form id="form-produto">
+                <div class="form-group">
+                    <input id="nome" placeholder="Nome do produto *" required>
+                </div>
 
-<script>
-const API = '/api/produtos';
+                <div class="form-row">
+                    <div class="form-group">
+                        <input id="categoria" placeholder="Categoria">
+                    </div>
+                    <div class="form-group">
+                        <input id="preco" type="number" step="0.01" placeholder="Preço">
+                    </div>
+                </div>
 
-document.getElementById('form-produto').addEventListener('submit', async (e)=>{
-  e.preventDefault();
+                <div class="form-group">
+                    <input id="quantidade" type="number" placeholder="Quantidade">
+                </div>
 
-  const nome = document.getElementById('nome').value.trim();
-  const categoria = document.getElementById('categoria').value.trim();
-  const preco = parseFloat(document.getElementById('preco').value) || 0;
-  const quantidade = parseInt(document.getElementById('quantidade').value) || 0;
-  const mensagem = document.getElementById('mensagem');
+        <div class="btn-group">
+          <button type="submit" class="btn btn-primary">Salvar</button>
+          <button type="button" class="btn btn-secondary" onclick="window.location.href='/'">Voltar</button>
+          <button type="button" class="btn btn-ghost" onclick="window.location.href='/fornecedor'">🤝 Fornecedor</button>
+        </div>
+            </form>
 
-  if(!nome){
-    mensagem.textContent = "❌ O nome do produto é obrigatório.";
-    mensagem.style.color = "red";
-    return;
-  }
+            <p id="mensagem" style="margin-top:14px"></p>
+        </div>
+    </div>
 
-  try {
-    const res = await fetch(API, {
-      method:'POST',
-      headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({nome, categoria, preco, quantidade})
+    <script src="{{ url_for('static', filename='js/common.js') }}"></script>
+    <script>
+    const API = '/api/produtos';
+
+    document.getElementById('form-produto').addEventListener('submit', async (e)=>{
+      e.preventDefault();
+
+      const nome = document.getElementById('nome').value.trim();
+      const categoria = document.getElementById('categoria').value.trim();
+      const preco = parseFloat(document.getElementById('preco').value) || 0;
+      const quantidade = parseInt(document.getElementById('quantidade').value) || 0;
+      const mensagem = document.getElementById('mensagem');
+
+      if(!nome){
+        mensagem.textContent = "❌ O nome do produto é obrigatório.";
+        mensagem.style.color = "red";
+        return;
+      }
+
+      try {
+        const res = await fetch(API, {
+          method:'POST',
+          headers:{'Content-Type':'application/json'},
+          body: JSON.stringify({nome, categoria, preco, quantidade})
+        });
+
+        const data = await res.json();
+
+        if(res.ok){
+          mensagem.textContent = "✅ " + (data.mensagem || 'Produto registrado com sucesso.');
+          mensagem.style.color = "green";
+          document.getElementById('form-produto').reset();
+        } else {
+          mensagem.textContent = "❌ " + (data.erro || "Erro ao registrar produto.");
+          mensagem.style.color = "red";
+        }
+
+      } catch (err) {
+        mensagem.textContent = "⚠️ Erro de conexão com o servidor.";
+        mensagem.style.color = "red";
+      }
     });
-
-    const data = await res.json();
-
-    if(res.ok){
-      mensagem.textContent = "✅ " + data.mensagem;
-      mensagem.style.color = "green";
-      document.getElementById('form-produto').reset();
-    } else {
-      mensagem.textContent = "❌ " + (data.erro || "Erro ao registrar produto.");
-      mensagem.style.color = "red";
-    }
-
-  } catch (err) {
-    mensagem.textContent = "⚠️ Erro de conexão com o servidor.";
-    mensagem.style.color = "red";
-  }
-});
-</script>
+    </script>
 
 </body>
 </html>

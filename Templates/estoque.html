@@ -1,47 +1,65 @@
-<!DOCTYPE html>
-<html lang="pt-BR">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Estoque - Tabacaria</title>
-  <!-- DataTables CSS e JS -->
+{% extends "base.html" %}
+
+{% block title %}Estoque - Tabacaria{% endblock %}
+
+{% block extra_css %}
 <link rel="stylesheet" href="https://cdn.datatables.net/1.13.5/css/jquery.dataTables.min.css">
-<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-<script src="https://cdn.datatables.net/1.13.5/js/jquery.dataTables.min.js"></script>
-  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/jsbarcode/3.11.5/JsBarcode.all.min.js"></script>
-</head>
-<body>
-    <div class="container">
-    <div class="header">
-      <img src="{{ url_for('static', filename='Images/Logo_tabacaria.png') }}" alt="Logo" class="logo">
-      <div>
+{% endblock %}
+
+{% block content %}
+<div class="header">
+    <img src="{{ url_for('static', filename='Images/Logo_tabacaria.png') }}" alt="Logo" class="logo">
+    <div>
         <h1>Tabacaria - Estoque</h1>
         <p style="color:#999; margin-top:6px;">Visualização do estoque atual</p>
-      </div>
-      <div class="header-actions">
-        <button class="btn btn-ghost" onclick="window.location.href='/fornecedor'">🤝 Fornecedor</button>
-        <button class="btn btn-secondary" onclick="window.location.href='/'">⬅ Voltar</button>
-      </div>
     </div>
+</div>
 
-    <div class="panel">
-      <h2 style="margin-bottom:18px; border-bottom:3px solid #667eea; padding-bottom:8px;">📋 Estoque Atual</h2>
-      <div style="overflow-x:auto">
-        <table id="tabelaEstoque">
-          <thead>
-          <tr>
-            <th>Nome</th>
-            <th>Categoria</th>
-            <th>Preço</th>
-            <th>Qtd</th>
-            <th>Código</th>
-            <th>Etiqueta</th>
-            <th style="width:180px">Ações</th>
-          </tr>
-          </thead>
-          <tbody id="tabela"></tbody>
-        </table>
+    <!-- Grid layout for new product + table -->
+    <div style="display:grid; grid-template-columns:300px 1fr; gap:20px; align-items:start">
+      <!-- New product form -->
+      <div class="panel">
+        <h2>Novo Produto</h2>
+        <form id="newProductForm">
+          <div class="form-group">
+            <label>Nome *</label>
+            <input type="text" id="newName" required>
+          </div>
+          <div class="form-group">
+            <label>Categoria</label>
+            <input type="text" id="newCategory">
+          </div>
+          <div class="form-group">
+            <label>Preço (R$) *</label>
+            <input type="number" id="newPrice" step="0.01" required>
+          </div>
+          <div class="form-group">
+            <label>Quantidade Inicial *</label>
+            <input type="number" id="newQuantity" required>
+          </div>
+          <button type="submit" class="btn btn-primary">Cadastrar Produto</button>
+        </form>
+      </div>
+
+      <!-- Products table -->
+      <div class="panel">
+        <h2 style="margin-bottom:18px; border-bottom:3px solid var(--accent-1); padding-bottom:8px;">📋 Estoque Atual</h2>
+        <div style="overflow-x:auto">
+          <table id="tabelaEstoque">
+            <thead>
+            <tr>
+              <th>Nome</th>
+              <th>Categoria</th>
+              <th>Preço</th>
+              <th>Qtd</th>
+              <th>Código</th>
+              <th>Etiqueta</th>
+              <th style="width:180px">Ações</th>
+            </tr>
+            </thead>
+            <tbody id="tabela"></tbody>
+          </table>
+        </div>
       </div>
     </div>
 
@@ -244,6 +262,40 @@ async function carregarProdutos(){
   }
 }
 
-    </script>
-</body>
-</html>
+// Handle new product form
+document.getElementById('newProductForm').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const nome = document.getElementById('newName').value.trim();
+  const categoria = document.getElementById('newCategory').value.trim();
+  const preco = parseFloat(document.getElementById('newPrice').value) || 0;
+  const quantidade = parseInt(document.getElementById('newQuantity').value) || 0;
+
+  try {
+    const res = await fetch('/api/produtos', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({nome, categoria, preco, quantidade})
+    });
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      throw new Error(data.erro || 'Falha ao cadastrar');
+    }
+    // reset form
+    e.target.reset();
+    carregarProdutos();
+    alert('Produto cadastrado com sucesso!');
+  } catch(err) {
+    console.error(err);
+    alert('Erro ao cadastrar produto: ' + (err.message || err));
+  }
+});
+
+carregarProdutos();
+  </script>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script src="https://cdn.datatables.net/1.13.5/js/jquery.dataTables.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jsbarcode/3.11.5/JsBarcode.all.min.js"></script>
+{% endblock %}

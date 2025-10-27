@@ -1,0 +1,91 @@
+{% extends "base.html" %}
+
+{% block title %}Histórico de Movimentações{% endblock %}
+
+{% block content %}
+<div class="header">
+    <img src="{{ url_for('static', filename='Images/Logo_tabacaria.png') }}" alt="Logo" class="logo">
+    <div>
+        <h1>Histórico de Movimentações</h1>
+        <p class="muted">Entradas e saídas de estoque</p>
+    </div>
+</div>
+
+    <div class="panel" style="margin-top:16px">
+      <h2>Últimas Movimentações</h2>
+      <div id="movAlert"></div>
+
+      <div style="display:flex; gap:8px; margin-bottom:12px; align-items:center">
+        <input id="q" placeholder="Pesquisar produto ou observação" style="flex:1; padding:8px 10px; border-radius:8px; border:1px solid #e6edf3">
+        <input id="start_date" type="date" style="padding:8px 10px; border-radius:8px; border:1px solid #e6edf3">
+        <input id="end_date" type="date" style="padding:8px 10px; border-radius:8px; border:1px solid #e6edf3">
+        <button class="btn btn-primary" id="btnFilter">Filtrar</button>
+        <button class="btn btn-ghost" id="btnClear">Limpar</button>
+      </div>
+
+      <table class="table" id="movTable">
+        <thead>
+          <tr>
+            <th>Data</th>
+            <th>Produto</th>
+            <th>Tipo</th>
+            <th>Quantidade</th>
+            <th>Observação</th>
+            <th>Ações</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr><td colspan="6">Carregando...</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <script>
+    const API = '/api/movimentacoes';
+    const tableBody = document.querySelector('#movTable tbody');
+    const movAlert = document.getElementById('movAlert');
+
+    function showAlert(msg, ok=true){ movAlert.innerHTML = `<div class="alert ${ok? 'alert-success':'alert-danger'}">${msg}</div>`; setTimeout(()=>movAlert.innerHTML='',5000); }
+
+    async function loadMov(limit=100){
+      tableBody.innerHTML = '<tr><td colspan="6">Carregando...</td></tr>';
+      try{
+        const q = document.getElementById('q').value.trim();
+        const start = document.getElementById('start_date').value || null;
+        const end = document.getElementById('end_date').value || null;
+        const params = new URLSearchParams();
+        if(limit) params.set('limit', limit);
+        if(q) params.set('q', q);
+        if(start) params.set('start_date', start + ' 00:00:00');
+        if(end) params.set('end_date', end + ' 23:59:59');
+
+        const res = await fetch(API + '?' + params.toString());
+        if(!res.ok) throw new Error('Falha ao carregar movimentações');
+        const data = await res.json();
+        if(!data.length) { tableBody.innerHTML = '<tr><td colspan="6">Nenhuma movimentação encontrada</td></tr>'; return }
+        tableBody.innerHTML = data.map(m=>`<tr>
+          <td>${m.data_mov}</td>
+          <td>${escapeHtml(m.produto_nome||'')}</td>
+          <td>${m.tipo}</td>
+          <td>${m.quantidade}</td>
+          <td>${escapeHtml(m.observacao||'')}</td>
+          <td><button class="btn btn-danger" onclick="deleteMov(${m.id_mov})">Remover</button></td>
+        </tr>`).join('');
+      }catch(err){ console.error(err); tableBody.innerHTML = '<tr><td colspan="6">Erro ao carregar</td></tr>'; }
+    }
+
+    function escapeHtml(s){ if(!s) return ''; return s.replace(/[&<>\"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','\"':'&quot;',"'":"&#39;"})[c]); }
+
+    async function deleteMov(id){ if(!confirm('Confirma remover esta movimentação?')) return; try{ const res = await fetch(API+'/'+id,{method:'DELETE'}); const data = await res.json().catch(()=>({})); if(!res.ok){ showAlert(data.erro||'Falha', false); return } showAlert(data.mensagem||'Removido'); loadMov(100); }catch(e){ console.error(e); showAlert('Erro ao comunicar com o servidor', false); } }
+
+  document.getElementById('btnFilter').addEventListener('click', ()=> loadMov(100));
+  document.getElementById('btnClear').addEventListener('click', ()=>{ document.getElementById('q').value=''; document.getElementById('start_date').value=''; document.getElementById('end_date').value=''; loadMov(100); });
+  loadMov(100);
+  </script>
+  {% endblock %}
+  {% block scripts %}
+    <script>
+      loadMov(100);
+    </script>
+  {% endblock %}

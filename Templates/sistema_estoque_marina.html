@@ -1,123 +1,118 @@
-<!DOCTYPE html>
-<html lang="pt-BR">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Sistema de Gestão de Produtos</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jsbarcode/3.11.5/JsBarcode.all.min.js"></script>
-</head>
-<body>
-    <div class="container">
-        <!-- Header -->
-        <div class="header">
-            <img width="100px" src="{{ url_for('static', filename='Images/Logo_tabacaria.png') }}" alt="logo">
-            <div>
-                <h1>Gestão de Produtos</h1>
-                <p style="color: #999; margin-top: 5px;">Sistema de Inventário com Código de Barras</p>
-            </div>
-            <div class="header-status">
-                <div class="status-item">
-                    <div class="status-number" id="totalProducts">0</div>
-                    <div class="status-label">Produtos</div>
-                </div>
-                <div class="status-item">
-                    <div class="status-number" id="totalValue">R$ 0</div>
-                    <div class="status-label">Valor Total</div>
-                </div>
-            </div>
-            <div class="header-actions">
-                <button class="btn btn-secondary" onclick="window.location.href='/registrar'">📦 Registrar</button>
-                <button class="btn btn-secondary" onclick="window.location.href='/estoque'">📋 Estoque</button>
-                <button class="btn btn-ghost" onclick="window.location.href='/fornecedor'">🤝 Fornecedor</button>
-            </div>
-            <button id="fullscreenBtn" class="btn-secondary" onclick="toggleFullScreen()" style="margin-left:12px; padding:10px 14px;">⛶ Tela Cheia</button>
+{% extends "base.html" %}
+
+{% block title %}Sistema de Gestão de Produtos{% endblock %}
+
+{% block content %}
+<!-- Header -->
+<div class="header">
+    <img width="100px" src="{{ url_for('static', filename='Images/Logo_tabacaria.png') }}" alt="logo">
+    <div>
+        <h1>Gestão de Produtos</h1>
+        <p style="color: #999; margin-top: 5px;">Sistema de Inventário com Código de Barras</p>
+    </div>
+    <div class="header-status">
+        <div class="status-item">
+            <div class="status-number" id="totalProducts">0</div>
+            <div class="status-label">Produtos</div>
+        </div>
+        <div class="status-item">
+            <div class="status-number" id="totalValue">R$ 0</div>
+            <div class="status-label">Valor Total</div>
+        </div>
+    </div>
+    <div class="header-actions">
+        <button class="btn btn-secondary" onclick="window.location.href='/registrar'">📦 Registrar</button>
+        <button class="btn btn-secondary" onclick="window.location.href='/estoque'">📋 Estoque</button>
+        <button class="btn btn-ghost" onclick="window.location.href='/venda'">🛍️ Nova Venda</button>
+        <button class="btn btn-ghost" onclick="window.location.href='/movimentacoes'">📈 Movimentações</button>
+    </div>
+    <button id="fullscreenBtn" class="btn-secondary" onclick="toggleFullScreen()" style="margin-left:12px; padding:10px 14px;">⛶ Tela Cheia</button>
+</div>
+
+<!-- Conteúdo Principal -->
+<div class="main-content">
+    <!-- Cadastro de Produtos -->
+    <div class="panel">
+        <h2>📝 Cadastro de Produto</h2>
+        <div id="successMessage"></div>
+        
+        <div class="form-group">
+            <label>Nome do Produto *</label>
+            <input type="text" id="productName" placeholder="Ex: Camiseta Azul">
         </div>
 
-        <!-- Conteúdo Principal -->
-        <div class="main-content">
-            <!-- Cadastro de Produtos -->
-            <div class="panel">
-                <h2>📝 Cadastro de Produto</h2>
-                <div id="successMessage"></div>
-                
-                <div class="form-group">
-                    <label>Nome do Produto *</label>
-                    <input type="text" id="productName" placeholder="Ex: Camiseta Azul">
-                </div>
+        <div class="form-group">
+            <label>Descrição</label>
+            <textarea id="productDescription" placeholder="Descreva o produto..." rows="3"></textarea>
+        </div>
 
-                <div class="form-group">
-                    <label>Descrição</label>
-                    <textarea id="productDescription" placeholder="Descreva o produto..." rows="3"></textarea>
-                </div>
-
-                <div class="form-row">
-                    <div class="form-group">
-                        <label>Preço (R$) *</label>
-                        <input type="number" id="productPrice" placeholder="0.00" min="0" step="0.01">
-                    </div>
-                    <div class="form-group">
-                        <label>Quantidade *</label>
-                        <input type="number" id="productQuantity" placeholder="0" min="0">
-                    </div>
-                </div>
-
-                <div class="form-row">
-                    <div class="form-group">
-                        <label>Categoria</label>
-                        <input type="text" id="productCategory" placeholder="Ex: Roupas">
-                    </div>
-                    <div class="form-group">
-                        <label>Unidade de Medida *</label>
-                        <select id="productUnit">
-                            <option value="">Selecione...</option>
-                            <option value="Unidade">Unidade</option>
-                            <option value="Caixa">Caixa</option>
-                            <option value="Pacote">Pacote</option>
-                        </select>
-                    </div>
-                </div>
-
-                <div class="btn-group">
-                    <button id="addBtn" class="btn-primary" onclick="addProduct()">+ Adicionar</button>
-                    <button class="btn-secondary" onclick="clearForm()">Limpar</button>
-                </div>
+        <div class="form-row">
+            <div class="form-group">
+                <label>Preço (R$) *</label>
+                <input type="number" id="productPrice" placeholder="0.00" min="0" step="0.01">
             </div>
+            <div class="form-group">
+                <label>Quantidade *</label>
+                <input type="number" id="productQuantity" placeholder="0" min="0">
+            </div>
+        </div>
 
-            <!-- Lista de Produtos -->
-            <div class="panel">
-                <h2>📊 Produtos Cadastrados</h2>
-                <div class="form-group">
-                    <!-- botão fixo esquerdo-inferior -->
-                    <button id="floatingFullscreen" class="btn-secondary" onclick="toggleFullScreen()" aria-label="Tela Cheia">⛶</button>
+        <div class="form-row">
+            <div class="form-group">
+                <label>Categoria</label>
+                <input type="text" id="productCategory" placeholder="Ex: Roupas">
+            </div>
+            <div class="form-group">
+                <label>Unidade de Medida *</label>
+                <select id="productUnit">
+                    <option value="">Selecione...</option>
+                    <option value="Unidade">Unidade</option>
+                    <option value="Caixa">Caixa</option>
+                    <option value="Pacote">Pacote</option>
+                </select>
+            </div>
+        </div>
 
-                    <script src="{{ url_for('static', filename='js/common.js') }}"></script>
-                    <script src="https://cdnjs.cloudflare.com/ajax/libs/jsbarcode/3.11.5/JsBarcode.all.min.js"></script>
-                    <script src="{{ url_for('static', filename='js/sistema_products.js') }}"></script>
-        }
+        <div class="btn-group">
+            <button id="addBtn" class="btn-primary" onclick="addProduct()">+ Adicionar</button>
+            <button class="btn-secondary" onclick="clearForm()">Limpar</button>
+        </div>
+    </div>
 
-        function updateFullScreenButton() {
-            const btn = document.getElementById('fullscreenBtn');
-            const floating = document.getElementById('floatingFullscreen');
-            const doc = document;
-            const isFull = !!(doc.fullscreenElement || doc.webkitFullscreenElement || doc.mozFullScreenElement || doc.msFullscreenElement);
-            btn.textContent = isFull ? '⤢ Sair Tela Cheia' : '⛶ Tela Cheia';
-            if (floating) floating.textContent = isFull ? '⤢' : '⛶';
-        }
+    <!-- Lista de Produtos -->
+    <div class="panel">
+        <h2>📊 Produtos Cadastrados</h2>
+        <div id="products"></div>
+    </div>
+</div>
+{% endblock %}
 
-        // Eventos para atualizar o texto do botão quando o estado de fullscreen mudar
-        document.addEventListener('fullscreenchange', updateFullScreenButton);
-        document.addEventListener('webkitfullscreenchange', updateFullScreenButton);
-        document.addEventListener('mozfullscreenchange', updateFullScreenButton);
-        document.addEventListener('MSFullscreenChange', updateFullScreenButton);
+{% block extra_js %}
+<script src="{{ url_for('static', filename='js/common.js') }}"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jsbarcode/3.11.5/JsBarcode.all.min.js"></script>
+<script src="{{ url_for('static', filename='js/sistema_products.js') }}"></script>
+<script>
+function updateFullScreenButton() {
+    const btn = document.getElementById('fullscreenBtn');
+    const floating = document.getElementById('floatingFullscreen');
+    const doc = document;
+    const isFull = !!(doc.fullscreenElement || doc.webkitFullscreenElement || doc.mozFullScreenElement || doc.msFullscreenElement);
+    btn.textContent = isFull ? '⤢ Sair Tela Cheia' : '⛶ Tela Cheia';
+    if (floating) floating.textContent = isFull ? '⤢' : '⛶';
+}
 
-        // Inicializa ao carregar a página — garante persistência visível após reload
-        document.addEventListener('DOMContentLoaded', () => {
-            // Recarrega lista a partir do localStorage (já carregado acima)
-            renderProducts();
-            updateStats();
-            updateFullScreenButton();
-        });
-    </script>
-</body>
-</html>
+// Eventos para atualizar o texto do botão quando o estado de fullscreen mudar
+document.addEventListener('fullscreenchange', updateFullScreenButton);
+document.addEventListener('webkitfullscreenchange', updateFullScreenButton);
+document.addEventListener('mozfullscreenchange', updateFullScreenButton);
+document.addEventListener('MSFullscreenChange', updateFullScreenButton);
+
+// Inicializa ao carregar a página — garante persistência visível após reload
+document.addEventListener('DOMContentLoaded', () => {
+    // Recarrega lista a partir do localStorage (já carregado acima)
+    renderProducts();
+    updateStats();
+    updateFullScreenButton();
+});
+</script>
+{% endblock %}

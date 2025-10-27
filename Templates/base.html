@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Estoque Tabacaria{% endblock %}</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <link rel="icon" href="{{ url_for('static', filename='Images/favicon.ico') }}" type="image/x-icon">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    {% block extra_css %}{% endblock %}
+</head>
+<body>
+    <!-- Side Drawer Navigation -->
+    <nav class="side-drawer">
+        <div class="drawer-handle"></div>
+        
+        <div class="drawer-logo">
+            <img src="{{ url_for('static', filename='Images/Logo_tabacaria.png') }}" alt="Logo">
+        </div>
+
+        <a href="/" class="nav-item {% if request.endpoint == 'index' %}active{% endif %}">
+            <i class="fas fa-home"></i> Início
+        </a>
+        
+        <a href="/estoque" class="nav-item {% if request.endpoint == 'estoque' %}active{% endif %}">
+            <i class="fas fa-box-open"></i> Estoque
+        </a>
+        
+        <a href="/venda" class="nav-item {% if request.endpoint == 'venda' %}active{% endif %}">
+            <i class="fas fa-shopping-cart"></i> Nova Venda
+        </a>
+        
+        <a href="/movimentacoes" class="nav-item {% if request.endpoint == 'movimentacoes_page' %}active{% endif %}">
+            <i class="fas fa-exchange-alt"></i> Movimentações
+        </a>
+        
+        <a href="/registrar" class="nav-item {% if request.endpoint == 'registrar' %}active{% endif %}">
+            <i class="fas fa-plus-circle"></i> Registrar Produto
+        </a>
+    </nav>
+
+    <div class="container">
+        {% block content %}{% endblock %}
+    </div>
+
+    {% block extra_js %}{% endblock %}
+    
+    <script>
+        // Add touch support for mobile
+        document.addEventListener('DOMContentLoaded', function() {
+            const drawer = document.querySelector('.side-drawer');
+            const handle = document.querySelector('.drawer-handle');
+            
+            handle.addEventListener('click', () => {
+                drawer.classList.toggle('active');
+            });
+            
+            // Close drawer when clicking outside
+            document.addEventListener('click', (e) => {
+                if (!drawer.contains(e.target) && drawer.classList.contains('active')) {
+                    drawer.classList.remove('active');
+                }
+            });
+        });
+    </script>
+</body>
+</html>

@@ -1,6 +1,6 @@
 # Controle-Tabacaria
 Sistema de controle de estoque para tabacaria
-Este repositório contém um sistema simples em Flask para gerenciar produtos, gerar etiquetas (códigos de barras) e registrar fornecimentos.
+Este repositório contém um sistema simples em Flask para gerenciar produtos, gerar etiquetas (códigos de barras) e registrar movimentações (entradas/saídas).
 
 Este arquivo descreve passo-a-passo o que você precisa instalar e configurar no computador da cliente (Windows) para rodar a aplicação localmente.
 
@@ -16,7 +16,7 @@ Este arquivo descreve passo-a-passo o que você precisa instalar e configurar no
 2. Navegue até a pasta do projeto:
 
 ```powershell
-
+cd 
 ```
 
 3. Crie e ative um ambiente virtual Python (recomendado):
@@ -95,13 +95,13 @@ python -m waitress --listen=0.0.0.0:8000 app:app
 
 ## Troubleshooting rápido
 - Erro ao gerar PNG do barcode: verifique se `Pillow` está instalado (pip install Pillow) e se a pasta `static/barcodes` é gravável.
-- Erro 404 no `/fornecedor`: verifique se reiniciou o servidor após mudanças no código.
+- Erro 404 no `/movimentacoes`: verifique se reiniciou o servidor após mudanças no código.
 - Dependências desatualizadas: rode `pip install -U -r requirements.txt` para atualizar.
 
 ## O que eu (desenvolvedor) já deixei preparado
 - `requirements.txt` com dependências.
 - `scripts/move_logo.py` para mover o logo entre pastas (se necessário).
 - `schema.sql` com as tabelas `produtos` e `movimentacoes`.
-- Páginas: `/` (index), `/registrar`, `/estoque`, `/fornecedor`.
+- Páginas: `/` (index), `/registrar`, `/estoque`, `/venda`, `/movimentacoes`.
 
 Se quiser, eu posso gerar um instalador mais detalhado (PowerShell script) que automatize os passos 2–8 para a máquina da cliente.

@@ -1,0 +1,184 @@
+{% extends "base.html" %}
+
+{% block title %}Registrar Venda{% endblock %}
+
+{% block content %}
+<div class="header">
+    <img src="{{ url_for('static', filename='Images/Logo_tabacaria.png') }}" alt="Logo" class="logo">
+    <div>
+        <h1>Registrar Venda</h1>
+        <p class="muted">Selecione os produtos e quantidades para venda</p>
+    </div>
+</div>
+
+<div class="panel sale-form">
+    <h2>Nova Venda</h2>
+    <div id="alertBox"></div>
+
+    <form id="saleForm" autocomplete="off">
+        <div class="form-group">
+            <label>Revendedor</label>
+            <input type="text" id="revendedorNome" placeholder="Digite o nome do revendedor (opcional)">
+            <div id="revendedorList" style="display:none; background:#fff; border:1px solid #e5e7eb; border-radius:8px; margin-top:4px; max-height:200px; overflow-y:auto"></div>
+        </div>
+
+        <div class="items-list">
+            <div id="itemsList">
+                <div class="item-row">
+                    <select class="produto-select" required>
+                        <option value="">Selecione um produto...</option>
+                    </select>
+                    <input type="number" class="quantidade-input" min="1" placeholder="Qtd." required>
+                    <button type="button" class="btn btn-danger btn-remove" onclick="this.closest('.item-row').remove(); updatePreview()" style="display:none">&times;</button>
+                </div>
+            </div>
+            <button type="button" class="add-item-btn" onclick="addItemRow()">+ Adicionar Item</button>
+
+            <div class="preview-panel">
+                <div id="previewItems"></div>
+                <div class="preview-total">Total: R$ <span id="previewTotal">0,00</span></div>
+            </div>
+        </div>
+
+        <div class="form-group">
+            <label>Observações</label>
+            <textarea id="observacao" rows="2" placeholder="Notas adicionais sobre a venda..."></textarea>
+        </div>
+
+        <div style="text-align:right; margin-top:20px">
+            <button type="submit" class="btn btn-primary">Finalizar Venda</button>
+        </div>
+    </form>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    // Global state
+    let produtos = [];
+    let revendedores = [];
+    let selectedRevendedor = null;
+
+    function showAlert(message, success=true) {
+        const box = document.getElementById('alertBox');
+        box.innerHTML = `<div class="alert ${success?'alert-success':'alert-danger'}">${message}</div>`;
+        setTimeout(() => box.innerHTML = '', 6000);
+    }
+
+    async function loadProdutos() {
+        try {
+            const res = await fetch('/api/produtos');
+            if (!res.ok) throw new Error('Falha ao carregar produtos');
+            produtos = await res.json();
+            updateProdutoSelects();
+        } catch(err) {
+            console.error(err);
+            showAlert('Erro ao carregar produtos. Tente recarregar a página.', false);
+        }
+    }
+
+    function updateProdutoSelects() {
+        document.querySelectorAll('.produto-select').forEach(select => {
+            const currentVal = select.value;
+            select.innerHTML = '<option value="">Selecione um produto...</option>' +
+                produtos.map(p => `<option value="${p.id_produto}" ${p.id_produto==currentVal?'selected':''}>${p.nome} (R$ ${p.preco.toFixed(2)})</option>`).join('');
+        });
+    }
+
+    function addItemRow() {
+        const row = document.createElement('div');
+        row.className = 'item-row';
+        row.innerHTML = `
+            <select class="produto-select" required>
+                <option value="">Selecione um produto...</option>
+                ${produtos.map(p => `<option value="${p.id_produto}">${p.nome} (R$ ${p.preco.toFixed(2)})</option>`).join('')}
+            </select>
+            <input type="number" class="quantidade-input" min="1" placeholder="Qtd." required>
+            <button type="button" class="btn btn-danger btn-remove" onclick="this.closest('.item-row').remove(); updatePreview()">&times;</button>
+        `;
+        document.getElementById('itemsList').appendChild(row);
+        const selects = document.querySelectorAll('.produto-select');
+        if (selects.length > 1) {
+            document.querySelectorAll('.btn-remove').forEach(btn => btn.style.display = '');
+        }
+        row.querySelector('select').addEventListener('change', updatePreview);
+        row.querySelector('input').addEventListener('input', updatePreview);
+    }
+
+    function updatePreview() {
+        const items = [];
+        let total = 0;
+        document.querySelectorAll('.item-row').forEach(row => {
+            const select = row.querySelector('.produto-select');
+            const qty = parseInt(row.querySelector('.quantidade-input').value) || 0;
+            if (select.value && qty > 0) {
+                const produto = produtos.find(p => p.id_produto == select.value);
+                if (produto) {
+                    const subtotal = produto.preco * qty;
+                    items.push({ nome: produto.nome, quantidade: qty, preco: produto.preco, subtotal });
+                    total += subtotal;
+                }
+            }
+        });
+        document.getElementById('previewItems').innerHTML = items.map(item => `
+            <div class="preview-item"><div>${item.quantidade}x ${item.nome}</div><div>R$ ${item.subtotal.toFixed(2)}</div></div>
+        `).join('');
+        document.getElementById('previewTotal').textContent = total.toFixed(2);
+    }
+
+    document.addEventListener('submit', (e) => {}, true);
+
+    document.getElementById('saleForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const items = [];
+        document.querySelectorAll('.item-row').forEach(row => {
+            const pid = row.querySelector('.produto-select').value;
+            const qty = parseInt(row.querySelector('.quantidade-input').value);
+            if (pid && qty > 0) items.push({ id_produto: parseInt(pid), quantidade: qty });
+        });
+        if (!items.length) { showAlert('Adicione pelo menos um item à venda.', false); return; }
+        const payload = { items, observacao: document.getElementById('observacao').value.trim() };
+        if (selectedRevendedor) payload.id_revendedor = selectedRevendedor.id_revendedor;
+        else {
+            const nome = document.getElementById('revendedorNome').value.trim();
+            if (nome) {
+                try {
+                    const res = await fetch('/api/revendedores', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({nome}) });
+                    if (!res.ok) throw new Error('Falha ao criar revendedor');
+                    const data = await res.json(); payload.id_revendedor = data.id_revendedor;
+                } catch(err) { console.error(err); showAlert('Erro ao criar revendedor. Tente novamente.', false); return; }
+            }
+        }
+        try {
+            const res = await fetch('/api/vendas', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(payload) });
+            const data = await res.json(); if (!res.ok) { showAlert(data.erro || 'Falha ao registrar venda.', false); return; }
+            showAlert(`Venda #${data.id_venda} registrada com sucesso!`);
+            document.querySelectorAll('.item-row').forEach((row,idx)=>{ if(idx===0){ row.querySelector('select').value=''; row.querySelector('input').value=''; } else row.remove(); });
+            document.getElementById('observacao').value=''; document.getElementById('revendedorNome').value=''; selectedRevendedor=null; updatePreview();
+        } catch(err) { console.error(err); showAlert('Erro ao comunicar com o servidor.', false); }
+    });
+
+    document.addEventListener('click', (e)=>{ if (e.target.matches('.add-item-btn')) addItemRow(); });
+
+    async function loadRevendedores() {
+        try { const res = await fetch('/api/revendedores'); if (!res.ok) throw new Error(); revendedores = await res.json(); } catch(e){ revendedores = []; }
+    }
+
+    const revendedorInput = document.getElementById('revendedorNome');
+    const revendedorList = document.getElementById('revendedorList');
+    revendedorInput.addEventListener('input', () => {
+        const val = revendedorInput.value.trim().toLowerCase(); if(!val){ revendedorList.style.display='none'; selectedRevendedor=null; return; }
+        const matches = revendedores.filter(r => r.nome.toLowerCase().includes(val)).slice(0,5);
+        if(!matches.length){ revendedorList.style.display='none'; selectedRevendedor=null; return; }
+        revendedorList.innerHTML = matches.map(r=>`<div class="typeahead-item" style="padding:8px 12px; cursor:pointer; border-bottom:1px solid #f3f3f3" onclick="selectRevendedor(${r.id_revendedor}, '${r.nome.replace("'","\'")}')">${r.nome}</div>`).join('');
+        revendedorList.style.display='block';
+    });
+
+    function selectRevendedor(id,nome){ selectedRevendedor={id_revendedor:id,nome}; revendedorInput.value=nome; revendedorList.style.display='none'; }
+
+    document.addEventListener('click',(e)=>{ if(!revendedorList.contains(e.target) && e.target!==revendedorInput) revendedorList.style.display='none'; });
+
+    // Init
+    loadProdutos(); loadRevendedores();
+</script>
+{% endblock %}

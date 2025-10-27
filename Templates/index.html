@@ -1,30 +1,96 @@
-<!DOCTYPE html>
-<html lang="pt-BR">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Controle de Estoque - Tabacaria</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
-    <link rel="icon" href="{{ url_for('static', filename='Images/favicon.ico') }}" type="image/x-icon">
-</head>
-<body>
-    <div class="container">
-        <div class="header">
-            <img src="{{ url_for('static', filename='Images/Logo_tabacaria.png') }}" alt="Logo" class="logo">
-            <div>
-                <h1 style="font-size:20px;">Tabacaria Igaratinga</h1>
-                <p style="color:#999;margin-top:6px">Sistema de controle de estoque</p>
+{% extends "base.html" %}
+
+{% block title %}Painel - Controle de Estoque{% endblock %}
+
+{% block extra_css %}
+<style>
+    /* small dashboard helpers */
+    .dash-grid{ display:grid; grid-template-columns:repeat(3,1fr); gap:16px }
+    @media(max-width:980px){ .dash-grid{ grid-template-columns:repeat(1,1fr) } }
+    .dash-card{ background:linear-gradient(180deg,#fff,#fff); padding:18px; border-radius:12px; box-shadow:0 8px 30px rgba(0,0,0,0.06); display:flex; align-items:center; gap:12px }
+    .dash-card .icon{ width:56px; height:56px; border-radius:10px; display:flex; align-items:center; justify-content:center; font-size:22px }
+    .dash-card .meta{ flex:1 }
+    .dash-card h3{ margin:0; font-size:16px }
+    .dash-card p{ margin:6px 0 0; color:var(--muted) }
+    .recent-list li{ padding:8px 0; border-bottom:1px dashed #f3f3f3 }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="header">
+    <img src="{{ url_for('static', filename='Images/Logo_tabacaria.png') }}" alt="Logo" class="logo">
+    <div>
+        <h1>Painel de Controle</h1>
+        <p class="muted">Acesso rápido às áreas principais e histórico recente</p>
+    </div>
+    <div class="header-actions">
+        <button class="btn btn-secondary" onclick="window.location.href='/'">Início</button>
+        <button class="btn btn-secondary" onclick="window.location.href='/registrar'">Registrar</button>
+        <button class="btn btn-secondary" onclick="window.location.href='/estoque'">Estoque</button>
+        <button class="btn btn-primary" onclick="window.location.href='/venda'">Nova Venda</button>
+        <button class="btn btn-secondary" onclick="window.location.href='/movimentacoes'">Movimentações</button>
+    </div>
+</div>
+
+<div class="panel" style="margin-top:16px">
+    <h2>Visão Geral</h2>
+    <div class="dash-grid">
+        <div class="dash-card" onclick="location.href='/estoque'" style="cursor:pointer">
+            <div class="icon" style="background:linear-gradient(90deg,var(--accent-1),var(--accent-2)); color:white">
+                <i class="fa-solid fa-box-open"></i>
+            </div>
+            <div class="meta">
+                <h3>Produtos</h3>
+                <p id="countProducts">Carregando...</p>
             </div>
         </div>
 
-        <div class="panel">
-            <h2 style="margin-bottom:16px;padding-bottom:8px">Início</h2>
-            <div class="actions">
-                <button class="btn btn-primary" onclick="window.location.href='/registrar'">📦 Registrar Produto</button>
-                <button class="btn btn-secondary" onclick="window.location.href='/estoque'">📋 Ver Estoque</button>
-                <button class="btn btn-ghost" onclick="window.location.href='/fornecedor'">🤝 Fornecedor</button>
+        <div class="dash-card" onclick="location.href='/estoque'" style="cursor:pointer">
+            <div class="icon" style="background:#06b6d4; color:white"><i class="fa-solid fa-warehouse"></i></div>
+            <div class="meta">
+                <h3>Quantidade em Estoque</h3>
+                <p id="totalStock">Carregando...</p>
+            </div>
+        </div>
+
+        <div class="dash-card" onclick="location.href='/movimentacoes'" style="cursor:pointer">
+            <div class="icon" style="background:#10b981; color:white"><i class="fa-solid fa-clock-rotate-left"></i></div>
+            <div class="meta">
+                <h3>Movimentações Recentes</h3>
+                <p>Últimas ações registradas</p>
             </div>
         </div>
     </div>
-</body>
-</html>
+</div>
+
+<div class="panel" style="margin-top:16px">
+    <h2>Últimas Movimentações</h2>
+    <ul class="recent-list" id="recentMoves">
+        <li>Carregando...</li>
+    </ul>
+    <div style="text-align:right; margin-top:12px">
+        <button class="btn btn-secondary" onclick="location.href='/movimentacoes'">Ver todas</button>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    async function fetchCounts(){
+        try{
+            const p = await fetch('/api/produtos');
+            const produtos = p.ok? await p.json():[];
+            document.getElementById('countProducts').textContent = produtos.length + ' produtos';
+            const total = produtos.reduce((s,item)=> s + (parseInt(item.quantidade)||0), 0);
+            document.getElementById('totalStock').textContent = total + ' unidades';
+
+            const m = await fetch('/api/movimentacoes?limit=5');
+            const moves = m.ok? await m.json():[];
+            const ul = document.getElementById('recentMoves');
+            if(!moves.length) { ul.innerHTML = '<li>Nenhuma movimentação recente</li>'; return }
+            ul.innerHTML = moves.map(mi=>`<li><strong>${mi.produto_nome||'?'}</strong> — ${mi.tipo} ${mi.quantidade} <span style="color:var(--muted);">(${mi.data_mov})</span></li>`).join('');
+        }catch(e){ console.error(e); }
+    }
+    fetchCounts();
+</script>
+{% endblock %}

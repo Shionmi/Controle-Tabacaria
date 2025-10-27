@@ -1,21 +1,26 @@
-/* Unified theme: calm teal/indigo palette, soft shadows, subtle animations */
+/* Bold modern theme with larger brand presence */
 *{ box-sizing: border-box; margin:0; padding:0 }
 :root{
-  --bg: #c51f09; /* warm very-light */
+  /* Deep rich palette */
+  --bg: #18181b; /* deep charcoal */
   --card: #ffffff;
-  --muted: #6b4f44; /* warm muted brownish */
-  --accent-1: #b91c1c; /* red (primary) */
-  --accent-2: #7c2d12; /* brown accent (~10% influence) */
+  --muted: #71717a; /* neutral text */
+  --accent-1: #059669; /* rich emerald */
+  --accent-2: #0d9488; /* deep teal */
   --danger: #ef4444;
   --success: #16a34a;
-  --glass: rgba(255,255,255,0.6);
+  --glass: rgba(255,255,255,0.8);
 }
 
 html,body{ height:100%; font-family: 'Segoe UI', Roboto, system-ui, -apple-system, 'Helvetica Neue', Arial; background:var(--bg); color:#111827 }
 .container{ max-width:1200px; margin:36px auto; padding:24px }
 
+/* Larger logo and striking header */
+.header .logo{ width:120px; height:auto; border-radius:14px; box-shadow: 0 12px 36px rgba(0,0,0,0.2) }
+.header{ background:linear-gradient(135deg, rgba(5,150,105,0.12), rgba(13,148,136,0.16)); backdrop-filter:blur(12px) }
+
 /* Header */
-.header{ display:flex; gap:18px; align-items:center; background:linear-gradient(90deg, rgba(61, 29, 2, 0.959), rgba(168, 3, 3, 0.6)); padding:18px; border-radius:12px; box-shadow:0 6px 24px rgba(16,24,40,0.06) }
+.header{ display:flex; gap:18px; align-items:center; background:linear-gradient(90deg, rgba(14,165,164,0.08), rgba(124,154,146,0.06)); padding:18px; border-radius:12px; box-shadow:0 6px 24px rgba(16,24,40,0.04) }
 .header .logo{ width:84px; height:auto; border-radius:10px }
 .header h1{ font-size:20px; color:#e6e6e6; margin-bottom:4px }
 .header p{ color:var(--muted); font-size:13px; margin:0 }
@@ -27,7 +32,7 @@ html,body{ height:100%; font-family: 'Segoe UI', Roboto, system-ui, -apple-syste
 .panel h2{ font-size:18px; color:#0f172a; margin-bottom:16px }
 /* decorative heading bar */
 .panel h2{ position:relative; padding-left:12px }
-.panel h2:before{ content:''; position:absolute; left:0; top:6px; width:6px; height:26px; border-radius:4px; background: linear-gradient(180deg,var(--accent-1),var(--accent-2)); box-shadow:0 6px 18px rgba(124,45,18,0.06) }
+.panel h2:before{ content:''; position:absolute; left:0; top:6px; width:6px; height:26px; border-radius:4px; background: linear-gradient(180deg,var(--accent-1),var(--accent-2)); box-shadow:0 6px 18px rgba(124,154,146,0.06) }
 
 /* Layout */
 .main-grid{ display:grid; grid-template-columns: 1fr 420px; gap:20px; align-items:start }
@@ -82,6 +87,92 @@ tr:hover td{ background: linear-gradient(90deg, rgba(185,28,28,0.02), rgba(124,4
 /* small utilities */
 .muted{ color:var(--muted) }
 .text-center{ text-align:center }
+
+/* Alerts */
+.alert{ padding:10px 14px; border-radius:8px; margin-bottom:12px; font-weight:600 }
+.alert-success{ background:#ecfdf5; color:var(--success); border:1px solid #bbf7d0 }
+.alert-danger{ background:#fff1f2; color:var(--danger); border:1px solid #fecaca }
+
+/* Side Drawer Navigation */
+.side-drawer {
+  position: fixed;
+  top: 0;
+  left: -280px;
+  width: 280px;
+  height: 100vh;
+  background: linear-gradient(180deg, var(--bg), var(--accent-1));
+  box-shadow: 4px 0 24px rgba(0,0,0,0.1);
+  transition: transform 0.3s ease-in-out;
+  z-index: 1000;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.side-drawer:hover,
+.side-drawer.active {
+  transform: translateX(280px);
+}
+
+.side-drawer .nav-item {
+  display: flex;
+  align-items: center;
+  padding: 12px 16px;
+  border-radius: 12px;
+  color: #ffffff;
+  text-decoration: none;
+  transition: background 0.2s;
+  font-weight: 500;
+  gap: 12px;
+}
+
+.side-drawer .nav-item:hover {
+  background: rgba(255,255,255,0.1);
+}
+
+.side-drawer .nav-item i {
+  width: 24px;
+  font-size: 18px;
+  text-align: center;
+}
+
+.side-drawer .nav-item.active {
+  background: rgba(255,255,255,0.2);
+}
+
+/* Drawer Handle */
+.drawer-handle {
+  position: absolute;
+  top: 50%;
+  right: -24px;
+  width: 24px;
+  height: 60px;
+  background: var(--accent-1);
+  border-radius: 0 8px 8px 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  cursor: pointer;
+  transform: translateY(-50%);
+}
+
+.drawer-handle:after {
+  content: "≡";
+  font-size: 20px;
+}
+
+/* Logo in drawer */
+.side-drawer .drawer-logo {
+  padding: 20px 0;
+  text-align: center;
+}
+
+.side-drawer .drawer-logo img {
+  width: 100px;
+  height: auto;
+}
 
 /* Floating fullscreen button */
 #floatingFullscreen{ position:fixed; left:16px; bottom:16px; z-index:2000; padding:10px 12px; border-radius:10px; background:var(--card); border:1px solid #eef2ff; box-shadow:0 8px 24px rgba(2,6,23,0.06); cursor:pointer }

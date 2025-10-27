@@ -19,3 +19,44 @@ CREATE TABLE IF NOT EXISTS movimentacoes (
   data_mov TEXT DEFAULT (datetime('now')),
   FOREIGN KEY (id_produto) REFERENCES produtos(id_produto) ON DELETE RESTRICT
 );
+
+CREATE TABLE IF NOT EXISTS revendedores (
+  id_revendedor INTEGER PRIMARY KEY AUTOINCREMENT,
+  nome TEXT NOT NULL,
+  contato TEXT,
+  telefone TEXT,
+  email TEXT,
+  endereco TEXT,
+  notas TEXT,
+  criado_em TIMESTAMP DEFAULT (datetime('now'))
+);
+
+CREATE TABLE IF NOT EXISTS vendas (
+  id_venda INTEGER PRIMARY KEY AUTOINCREMENT,
+  id_revendedor INTEGER,
+  data_venda TIMESTAMP DEFAULT (datetime('now')),
+  observacao TEXT,
+  FOREIGN KEY (id_revendedor) REFERENCES revendedores(id_revendedor) ON DELETE SET NULL
+);
+
+CREATE TABLE IF NOT EXISTS venda_items (
+  id_item INTEGER PRIMARY KEY AUTOINCREMENT,
+  id_venda INTEGER NOT NULL,
+  id_produto INTEGER NOT NULL,
+  quantidade INTEGER NOT NULL,
+  preco_unitario REAL NOT NULL,
+  FOREIGN KEY (id_venda) REFERENCES vendas(id_venda) ON DELETE CASCADE,
+  FOREIGN KEY (id_produto) REFERENCES produtos(id_produto) ON DELETE RESTRICT
+);
+
+CREATE TABLE IF NOT EXISTS logs (
+  id_log INTEGER PRIMARY KEY AUTOINCREMENT,
+  criado_em TIMESTAMP DEFAULT (datetime('now')),
+  acao TEXT NOT NULL,
+  tipo TEXT,
+  quantidade INTEGER,
+  valor REAL,
+  produto_id INTEGER,
+  detalhe TEXT,
+  FOREIGN KEY (produto_id) REFERENCES produtos(id_produto) ON DELETE SET NULL
+);

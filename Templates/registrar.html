@@ -1,25 +1,15 @@
-<!DOCTYPE html>
-<html lang="pt-BR">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Registrar Produto - Tabacaria</title>
-  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
-</head>
-<body>
-    <div class="container">
-        <div class="header">
-          <img src="{{ url_for('static', filename='Images/Logo_tabacaria.png') }}" alt="Logo" class="logo">
-            <div>
-                <h1 style="font-size:20px;">Registrar Novo Produto</h1>
-                <p style="color:#999;margin-top:6px">Preencha os dados do produto</p>
-            </div>
-            <div class="header-actions">
-              <button class="btn btn-secondary" onclick="window.location.href='/'">Início</button>
-              <button class="btn btn-secondary" onclick="window.location.href='/estoque'">Estoque</button>
-              <button class="btn btn-ghost" onclick="window.location.href='/fornecedor'">Fornecedor</button>
-            </div>
-        </div>
+{% extends "base.html" %}
+
+{% block title %}Registrar Produto - Tabacaria{% endblock %}
+
+{% block content %}
+<div class="header">
+    <img src="{{ url_for('static', filename='Images/Logo_tabacaria.png') }}" alt="Logo" class="logo">
+    <div>
+        <h1 style="font-size:20px;">Registrar Novo Produto</h1>
+        <p style="color:#999;margin-top:6px">Preencha os dados do produto</p>
+    </div>
+</div>
 
     <div class="panel">
       <h2 style="margin-bottom:16px;padding-bottom:8px">📝 Cadastro de Produto</h2>
@@ -45,9 +35,9 @@
         <div class="btn-group">
           <button type="submit" class="btn btn-primary">Salvar</button>
           <button type="button" class="btn btn-secondary" onclick="window.location.href='/'">Voltar</button>
-          <button type="button" class="btn btn-ghost" onclick="window.location.href='/fornecedor'">🤝 Fornecedor</button>
         </div>
             </form>
+{% endblock %}
 
             <p id="mensagem" style="margin-top:14px"></p>
         </div>

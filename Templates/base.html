@@ -5,6 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}Estoque Tabacaria{% endblock %}</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <!-- Inter font for modern/clean UI; Georgia fallback used in CSS font-family -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
     <link rel="icon" href="{{ url_for('static', filename='Images/favicon.ico') }}" type="image/x-icon">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     {% block extra_css %}{% endblock %}
@@ -34,9 +36,22 @@
             <i class="fas fa-exchange-alt"></i> Movimentações
         </a>
         
-        <a href="/registrar" class="nav-item {% if request.endpoint == 'registrar' %}active{% endif %}">
-            <i class="fas fa-plus-circle"></i> Registrar Produto
-        </a>
+        <div class="nav-group">
+            <span class="nav-group-title">Cadastros</span>
+            <a href="/registrar" class="nav-item {% if request.endpoint == 'registrar' %}active{% endif %}">
+                <i class="fas fa-box-open"></i> Cadastrar Produto
+            </a>
+            <a href="/clientes/novo" class="nav-item {% if request.endpoint == 'novo_cliente' %}active{% endif %}">
+                <i class="fas fa-user-plus"></i> Cadastrar Cliente
+            </a>
+        </div>
+
+        <div class="nav-group">
+            <span class="nav-group-title">Consultas</span>
+            <a href="/clientes" class="nav-item {% if request.endpoint == 'listar_clientes' %}active{% endif %}">
+                <i class="fas fa-users"></i> Clientes
+            </a>
+        </div>
     </nav>
 
     <div class="container">

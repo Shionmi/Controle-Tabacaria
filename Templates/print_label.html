@@ -7,15 +7,20 @@
   <style>
     body{ margin:0; padding:18px; font-family: Arial, Helvetica, sans-serif; text-align:center }
     .label{ display:inline-block; padding:12px; border-radius:8px; background:#fff; box-shadow:0 6px 18px rgba(0,0,0,0.08) }
-    img{ max-width:360px; width:100%; height:auto }
-
+    .barcode{ max-width:360px; width:100%; height:auto }
     .small{ color:#666; font-size:13px }
     button{ display:inline-block; margin-top:12px; padding:8px 12px }
+    @media print {
+      body { padding: 0; }
+      .label { box-shadow: none; }
+    }
   </style>
 </head>
 <body>
   <div class="label">
-  <img src="{{ url_for('static', filename='barcodes/' + codigo_barras + '.png') }}" alt="{{ codigo_barras }}">
+    <div class="barcode">
+      {{ svg_data | safe }}
+    </div>
   </div>
 
   <script>

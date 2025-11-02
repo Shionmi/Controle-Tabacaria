@@ -91,20 +91,7 @@
         </div>
       </div>
     </div>
-    <!-- Modal de Impressão (mesma página) -->
-    <div class="modal" id="printModal">
-      <div class="modal-content print-modal-content">
-          <div class="print-area" id="printArea">
-            <div class="etiqueta">
-              <img id="printBarcodeImg" src="" alt="Código de barras">
-              <div id="productName" class="product-name"></div>
-            </div>
-          </div>
-          <div style="text-align:center;margin-top:12px">
-            <button class="btn btn-secondary" onclick="closePrintModal()">Fechar</button>
-          </div>
-      </div>
-    </div>
+
     </div>
 
     <script src="{{ url_for('static', filename='js/common.js') }}"></script>
@@ -124,7 +111,7 @@
             <td>${p.quantidade}</td>
             <td>${p.codigo_barras || ''}</td>
             <td>
-                <img src="/static/barcodes/${p.codigo_barras}.svg" width="120" alt="etiqueta" onerror="this.style.display='none'"> <br>
+                <img src="/static/barcodes/${p.codigo_barras}.png" width="120" alt="etiqueta" onerror="this.style.display='none'"> <br>
                 <button class="btn-primary" onclick="imprimirEtiqueta(${p.id_produto})">🖨️ Imprimir</button>
             </td>
             <td>
@@ -192,42 +179,28 @@
 
     carregarProdutos();
 
-  async function imprimirEtiqueta(id) {
-    try{
-      // Busca produto para obter o nome
-      const prodRes = await fetch('/api/produtos');
-      if (!prodRes.ok) throw new Error('Erro ao buscar produto');
-      const produtos = await prodRes.json();
-      const produto = produtos.find(p => p.id_produto === id);
-      if (!produto) throw new Error('Produto não encontrado');
-      
-      // Garante que o SVG exista e recupera caminho
-      const res = await fetch(`/api/generate_barcode/${id}`);
-      if(!res.ok) throw new Error('Não foi possível gerar etiqueta');
-      const data = await res.json();
-      
-      const img = document.getElementById('printBarcodeImg');
-      img.src = data.path + '?_t=' + Date.now(); // bust cache
-      
-      // Adiciona o nome do produto
-      const nameElement = document.getElementById('productName');
-      nameElement.textContent = produto.nome;
-      
-      const modal = document.getElementById('printModal');
-      modal.classList.add('active');
-
-      // Handler after print to close modal
-      const after = function(){
-        modal.classList.remove('active');
-        window.removeEventListener('afterprint', after);
-      };
-      window.addEventListener('afterprint', after);
-
-      // Aguarda um pouco para garantir renderização e abre diálogo de impressão
-      setTimeout(()=>{
-        try{ window.print(); }catch(e){ console.error(e); }
-      }, 300);
-    }catch(err){ console.error(err); alert('Erro ao preparar etiqueta: '+(err.message||err)); }
+  function imprimirEtiqueta(id) {
+    try {
+      fetch(`/imprimir_etiqueta/${id}`)
+        .then(response => response.blob())
+        .then(blob => {
+          const url = window.URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = `etiqueta_${id}.pdf`;
+          document.body.appendChild(a);
+          a.click();
+          window.URL.revokeObjectURL(url);
+          document.body.removeChild(a);
+        })
+        .catch(err => {
+          console.error(err);
+          alert('Erro ao gerar etiqueta: ' + (err.message || err));
+        });
+    } catch(err) {
+      console.error(err);
+      alert('Erro ao preparar etiqueta: ' + (err.message || err));
+    }
   }
 
     // Recarregar tabela com DataTables
@@ -249,7 +222,7 @@ async function carregarProdutos(){
         <td>${p.quantidade}</td>
         <td>${p.codigo_barras || ''}</td>
         <td>
-            <img src="/static/barcodes/${p.codigo_barras}.svg" width="120" alt="etiqueta" onerror="this.style.display='none'"> <br>
+            <img src="/static/barcodes/${p.codigo_barras}.png" width="120" alt="etiqueta" onerror="this.style.display='none'"> <br>
             <button class="btn-primary" onclick="imprimirEtiqueta(${p.id_produto})">🖨️ Imprimir</button>
         </td>
         <td>

@@ -13,79 +13,143 @@ app = Flask(__name__)
 
 @app.route('/imprimir_etiqueta/<int:id_produto>')
 def imprimir_etiqueta(id_produto):
-    conn = get_db()
-    cur = conn.cursor()
-    cur.execute("SELECT nome, codigo_barras FROM produtos WHERE id_produto=?", (id_produto,))
-    produto = cur.fetchone()
-    conn.close()
+    try:
+        # Conexão com o banco de dados
+        conn = get_db()
+        cur = conn.cursor()
+        cur.execute("SELECT nome, codigo_barras FROM produtos WHERE id_produto=?", (id_produto,))
+        produto = cur.fetchone()
+        conn.close()
 
-    if not produto:
-        return "Produto não encontrado", 404
+        if not produto:
+            app.logger.error(f"Produto não encontrado: {id_produto}")
+            return "Produto não encontrado", 404
 
-    nome, codigo_barras = produto
+        nome, codigo_barras = produto
 
-    # Gerar o código de barras temporário
-    from barcode import Code128
-    from barcode.writer import ImageWriter
-    ean = Code128(codigo_barras, writer=ImageWriter())
-    caminho_temp = f'static/barcodes/{codigo_barras}.png'
-    ean.save(caminho_temp)
+        # Validar e formatar o código de barras
+        if not isinstance(codigo_barras, str):
+            codigo_barras = str(codigo_barras)
+        codigo_barras = codigo_barras.strip()
 
-    # Criar PDF em memória
-    buffer = io.BytesIO()
-    largura, altura = 50 * mm, 30 * mm
-    c = canvas.Canvas(buffer, pagesize=(largura, altura))
+        # Gerar o código de barras em SVG
+        from barcode import Code128
+        from barcode.writer import SVGWriter
+        
+        # Configurar o writer SVG para um resultado mais compacto
+        writer = SVGWriter()
+        writer.set_options({
+            'module_width': 0.4,
+            'module_height': 15.0,
+            'quiet_zone': 3.0,
+            'font_size': 10,
+            'text_distance': 5.0,
+            'background': 'white'
+        })
+        
+        # Gerar SVG em memória
+        ean = Code128(codigo_barras, writer=writer)
+        svg_data = ean.render()
 
-    # Configuração do texto
+        # Criar PDF em memória usando svglib para converter SVG para PDF
+        from svglib.svglib import svg2rlg
+        from reportlab.graphics import renderPDF
+        import tempfile
 
+        # Criar arquivo SVG temporário em memória
+        with tempfile.NamedTemporaryFile(suffix='.svg', delete=False, mode='w+') as f:
+            f.write(svg_data)
+            temp_svg = f.name
 
-    # Inserir código de barras centralizado
-    c.drawImage(caminho_temp, (largura - 40*mm)/2, 8*mm, width=40*mm, height=20*mm)
-    # Procurar o arquivo com ou sem extensão .png
-    caminho_barcode = f"static/barcodes/{codigo_barras}.png"
-    if not os.path.exists(caminho_barcode):
-    # tenta sem extensão, caso o python-barcode tenha salvo assim
-        if os.path.exists(f"static/barcodes/{codigo_barras}"):
-            caminho_barcode = f"static/barcodes/{codigo_barras}"
+        try:
+            # Converter SVG para PDF
+            drawing = svg2rlg(temp_svg)
+            
+            # Criar PDF em memória
+            buffer = io.BytesIO()
+            largura, altura = 50 * mm, 30 * mm
+            
+            # Ajustar escala do desenho para caber na etiqueta
+            scale_x = (40 * mm) / drawing.width
+            scale_y = (20 * mm) / drawing.height
+            scale = min(scale_x, scale_y)
+            drawing.scale(scale, scale)
+            
+            # Centralizar na etiqueta
+            drawing.translate(
+                ((largura - drawing.width * scale) / 2),
+                ((altura - drawing.height * scale) / 2)
+            )
+            
+            renderPDF.drawToFile(drawing, buffer)
+            buffer.seek(0)
+            
+            return send_file(
+                buffer,
+                as_attachment=True,
+                download_name=f"etiqueta_{codigo_barras}.pdf",
+                mimetype='application/pdf'
+            )
+        finally:
+            # Limpar arquivo temporário
+            try:
+                os.unlink(temp_svg)
+            except:
+                pass
 
-    c.showPage()
-    c.save()
-    buffer.seek(0)
-
-    return send_file(
-        buffer,
-        as_attachment=True,
-        download_name=f"etiqueta_{codigo_barras}.pdf",
-        mimetype='application/pdf'
-    )
+    except Exception as e:
+        app.logger.error(f"Erro ao gerar etiqueta para produto {id_produto}: {str(e)}")
+        return jsonify({"error": "Erro ao gerar etiqueta", "details": str(e)}), 500
 
 
 @app.route('/imprimir_etiqueta_html/<int:id_produto>')
 def imprimir_etiqueta_html(id_produto):
-    # Renderiza uma página simples com a imagem do código de barras e dispara window.print()
-    conn = get_db()
-    cur = conn.cursor()
-    cur.execute("SELECT nome, codigo_barras FROM produtos WHERE id_produto=?", (id_produto,))
-    produto = cur.fetchone()
-    conn.close()
+    try:
+        # Renderiza uma página simples com o código de barras em SVG
+        conn = get_db()
+        cur = conn.cursor()
+        cur.execute("SELECT nome, codigo_barras FROM produtos WHERE id_produto=?", (id_produto,))
+        produto = cur.fetchone()
+        conn.close()
 
-    if not produto:
-        return "Produto não encontrado", 404
+        if not produto:
+            return "Produto não encontrado", 404
 
-    nome, codigo_barras = produto
-    caminho_png = f'static/barcodes/{codigo_barras}.png'
+        nome, codigo_barras = produto
 
-    # Garante que o arquivo PNG exista (gera se necessário)
-    if not os.path.exists(caminho_png):
-        try:
-            from barcode import Code128
-            from barcode.writer import ImageWriter
-            ean = Code128(codigo_barras, writer=ImageWriter())
-            ean.save(f'static/barcodes/{codigo_barras}')
-        except Exception:
-            pass
+        # Validar e formatar o código de barras
+        if not isinstance(codigo_barras, str):
+            codigo_barras = str(codigo_barras)
+        codigo_barras = codigo_barras.strip()
 
-    return render_template('print_label.html', nome=nome, codigo_barras=codigo_barras)
+        # Gerar o código de barras em SVG
+        from barcode import Code128
+        from barcode.writer import SVGWriter
+        
+        # Configurar o writer SVG para um resultado mais compacto
+        writer = SVGWriter()
+        writer.set_options({
+            'module_width': 0.4,
+            'module_height': 15.0,
+            'quiet_zone': 3.0,
+            'font_size': 10,
+            'text_distance': 5.0,
+            'background': 'white'
+        })
+        
+        # Gerar SVG em memória
+        ean = Code128(codigo_barras, writer=writer)
+        svg_data = ean.render()
+
+        # Retornar o template com o SVG
+        return render_template('print_label.html', 
+                            nome=nome, 
+                            codigo_barras=codigo_barras,
+                            svg_data=svg_data)
+
+    except Exception as e:
+        app.logger.error(f"Erro ao gerar etiqueta HTML para produto {id_produto}: {str(e)}")
+        return f"Erro ao gerar etiqueta: {str(e)}", 500
 
 # Configurações da aplicação
 DB = 'estoque_tabacaria.db'
@@ -96,18 +160,22 @@ def ensure_schema():
     """Create required tables if they don't exist"""
     conn = sqlite3.connect(DB)
     cur = conn.cursor()
-
-    # revendedores (clients/resellers to whom we sell)
+    
+    # clientes 
     cur.execute('''
-        CREATE TABLE IF NOT EXISTS revendedores (
-            id_revendedor INTEGER PRIMARY KEY AUTOINCREMENT,
+        CREATE TABLE IF NOT EXISTS clientes (
+            id_cliente INTEGER PRIMARY KEY AUTOINCREMENT,
             nome TEXT NOT NULL,
-            contato TEXT,
+            cpf TEXT UNIQUE,
             telefone TEXT,
             email TEXT,
             endereco TEXT,
-            notas TEXT,
-            criado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            cidade TEXT,
+            estado TEXT,
+            observacoes TEXT,
+            ultima_compra TIMESTAMP,
+            criado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            atualizado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
     ''')
 
@@ -172,6 +240,11 @@ def index():
 def registrar():
     return render_template('registrar.html')
 
+# ===== Página de clientes =====
+@app.route('/clientes')
+def clientes():
+    return render_template('clientes.html')
+
 
 @app.route('/venda')
 def venda():
@@ -187,6 +260,125 @@ def estoque():
 def movimentacoes_page():
     return render_template('movimentacoes.html')
 
+# ===== API para listar clientes =====
+@app.route('/api/clientes', methods=['GET'])
+def listar_clientes():
+    conn = get_db()
+    cur = conn.execute("SELECT * FROM clientes ORDER BY nome")
+    clientes = [dict(row) for row in cur.fetchall()]
+    conn.close()
+    return jsonify(clientes)
+
+# ===== API para adicionar cliente =====
+@app.route('/api/clientes', methods=['POST'])
+def adicionar_cliente():
+    data = request.json
+
+    nome = data.get('nome', '').strip()
+    cpf = data.get('cpf', '').strip()
+    telefone = data.get('telefone', '').strip()
+    email = data.get('email', '').strip()
+    endereco = data.get('endereco', '').strip()
+    cidade = data.get('cidade', '').strip()
+    estado = data.get('estado', '').strip()
+    observacoes = data.get('observacoes', '').strip()
+
+    if not nome:
+        return jsonify({"erro": "O nome do cliente é obrigatório."}), 400
+
+    conn = get_db()
+    cur = conn.cursor()
+
+    try:
+        cur.execute("""
+            INSERT INTO clientes (
+                nome, cpf, telefone, email, 
+                endereco, cidade, estado, observacoes
+            )
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        """, (nome, cpf, telefone, email, endereco, cidade, estado, observacoes))
+        conn.commit()
+        cliente_id = cur.lastrowid
+
+        return jsonify({
+            "mensagem": "Cliente registrado com sucesso!",
+            "id_cliente": cliente_id
+        })
+
+    except sqlite3.IntegrityError:
+        return jsonify({"erro": "CPF já cadastrado."}), 400
+    finally:
+        conn.close()
+
+# ===== API para buscar cliente =====
+@app.route('/api/clientes/<int:id_cliente>', methods=['GET'])
+def buscar_cliente(id_cliente):
+    conn = get_db()
+    cur = conn.execute("SELECT * FROM clientes WHERE id_cliente=?", (id_cliente,))
+    cliente = cur.fetchone()
+    conn.close()
+
+    if cliente is None:
+        return jsonify({"erro": "Cliente não encontrado"}), 404
+
+    return jsonify(dict(cliente))
+
+# ===== API para atualizar cliente =====
+@app.route('/api/clientes/<int:id_cliente>', methods=['PUT'])
+def atualizar_cliente(id_cliente):
+    data = request.json
+
+    nome = data.get('nome', '').strip()
+    cpf = data.get('cpf', '').strip()
+    telefone = data.get('telefone', '').strip()
+    email = data.get('email', '').strip()
+    endereco = data.get('endereco', '').strip()
+    cidade = data.get('cidade', '').strip()
+    estado = data.get('estado', '').strip()
+    observacoes = data.get('observacoes', '').strip()
+
+    if not nome:
+        return jsonify({"erro": "O nome do cliente é obrigatório."}), 400
+
+    conn = get_db()
+    cur = conn.cursor()
+
+    try:
+        cur.execute("""
+            UPDATE clientes 
+            SET nome=?, cpf=?, telefone=?, email=?,
+                endereco=?, cidade=?, estado=?, observacoes=?,
+                atualizado_em=CURRENT_TIMESTAMP
+            WHERE id_cliente=?
+        """, (nome, cpf, telefone, email, endereco, cidade, estado, observacoes, id_cliente))
+        conn.commit()
+
+        if cur.rowcount == 0:
+            return jsonify({"erro": "Cliente não encontrado"}), 404
+
+        return jsonify({"mensagem": "Cliente atualizado com sucesso!"})
+
+    except sqlite3.IntegrityError:
+        return jsonify({"erro": "CPF já cadastrado para outro cliente."}), 400
+    finally:
+        conn.close()
+
+# ===== API para excluir cliente =====
+@app.route('/api/clientes/<int:id_cliente>', methods=['DELETE'])
+def excluir_cliente(id_cliente):
+    conn = get_db()
+    cur = conn.cursor()
+    
+    cur.execute("DELETE FROM clientes WHERE id_cliente=?", (id_cliente,))
+    conn.commit()
+    
+    if cur.rowcount == 0:
+        conn.close()
+        return jsonify({"erro": "Cliente não encontrado"}), 404
+
+    conn.close()
+    return jsonify({"mensagem": "Cliente excluído com sucesso!"})
+
 # ===== API para listar produtos =====
 @app.route('/api/produtos', methods=['GET'])
 def listar_produtos():
@@ -195,6 +387,43 @@ def listar_produtos():
     produtos = [dict(row) for row in cur.fetchall()]
     conn.close()
     return jsonify(produtos)
+
+# ===== Rota para registrar cliente =====
+@app.route('/api/clientes', methods=['POST'])
+def registrar_cliente():
+    try:
+        data = request.json
+        nome = data.get('nome', '').strip()
+        cpf = data.get('cpf', '').strip()
+        telefone = data.get('telefone', '').strip()
+        email = data.get('email', '').strip()
+        endereco = data.get('endereco', '').strip()
+        cidade = data.get('cidade', '').strip()
+        estado = data.get('estado', '').strip()
+        observacoes = data.get('observacoes', '').strip()
+
+        if not nome:
+            return jsonify({"erro": "O nome do cliente é obrigatório."}), 400
+
+        conn = get_db()
+        cur = conn.cursor()
+        cur.execute("""
+            INSERT INTO clientes (nome, cpf, telefone, email, endereco, cidade, estado, observacoes)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        """, (nome, cpf, telefone, email, endereco, cidade, estado, observacoes))
+        conn.commit()
+        cliente_id = cur.lastrowid
+
+        return jsonify({
+            "mensagem": "Cliente registrado com sucesso!",
+            "id_cliente": cliente_id
+        })
+
+    except sqlite3.IntegrityError:
+        return jsonify({"erro": "CPF já cadastrado."}), 400
+    finally:
+        conn.close()
+
 
 # ===== API para adicionar produto =====
 @app.route('/api/produtos', methods=['POST'])
@@ -302,31 +531,111 @@ def deletar_produto(id_produto):
     return jsonify({"mensagem": "Produto removido com sucesso."})
 
 
+@app.route('/registrar_cliente')
+@app.route('/clientes/novo')
+def pagina_registrar_cliente():
+    return render_template('registrar_cliente.html')
+
+
 @app.route('/api/generate_barcode/<int:id_produto>', methods=['GET'])
 def api_generate_barcode(id_produto):
-    """Garante que exista o PNG do barcode e retorna o código e nome do produto."""
-    conn = get_db()
-    cur = conn.cursor()
-    cur.execute("SELECT nome, codigo_barras FROM produtos WHERE id_produto=?", (id_produto,))
-    row = cur.fetchone()
-    conn.close()
+    """Gera o código de barras em PNG com nome do produto."""
+    try:
+        conn = get_db()
+        cur = conn.cursor()
+        cur.execute("SELECT nome, codigo_barras FROM produtos WHERE id_produto=?", (id_produto,))
+        row = cur.fetchone()
+        conn.close()
 
-    if not row:
-        return jsonify({"erro": "Produto não encontrado."}), 404
+        if not row:
+            return jsonify({"error": "Produto não encontrado"}), 404
 
-    nome, codigo_barras = row
-    caminho_png = os.path.join('static', 'barcodes', f"{codigo_barras}.png")
+        nome, codigo_barras = row
 
-    if not os.path.exists(caminho_png):
+        # Validar e formatar o código de barras
+        if not isinstance(codigo_barras, str):
+            codigo_barras = str(codigo_barras)
+        codigo_barras = codigo_barras.strip()
+
+        # Criar uma nova imagem para a etiqueta completa
+        from PIL import Image, ImageDraw, ImageFont
+        import os
+
+        # Tamanho da etiqueta em pixels (5cm x 3cm em 300 DPI)
+        width = int(5 * 118.11)  # 5cm em pixels (300 DPI)
+        height = int(3 * 118.11)  # 3cm em pixels (300 DPI)
+
+        # Criar imagem em branco
+        label = Image.new('RGB', (width, height), 'white')
+        draw = ImageDraw.Draw(label)
+
+        # Carregar fonte
         try:
-            from barcode import Code128
-            from barcode.writer import ImageWriter
-            ean = Code128(codigo_barras, writer=ImageWriter())
-            ean.save(os.path.join('static', 'barcodes', f"{codigo_barras}"))
-        except Exception as e:
-            return jsonify({"erro": "Falha ao gerar imagem do código de barras.", "detalhe": str(e)}), 500
+            font = ImageFont.truetype("arial.ttf", 30)
+        except:
+            font = ImageFont.load_default()
 
-        return jsonify({"nome": nome, "codigo_barras": codigo_barras, "path": f"/static/barcodes/{codigo_barras}.png"})
+        # Desenhar o nome do produto
+        text_width = draw.textlength(nome, font=font)
+        text_x = (width - text_width) / 2
+        draw.text((text_x, 10), nome, fill='black', font=font)
+
+        # Gerar o código de barras
+        from barcode import Code128
+        from barcode.writer import ImageWriter
+        
+        writer = ImageWriter()
+        writer.set_options({
+            'module_width': 0.6,
+            'module_height': 15.0,
+            'quiet_zone': 6.0,
+            'font_size': 10,
+            'text_distance': 5.0,
+            'background': 'white'
+        })
+
+        # Gerar PNG do código de barras
+        os.makedirs(os.path.join(app.static_folder, 'barcodes'), exist_ok=True)
+        temp_path = os.path.join(app.static_folder, 'barcodes', 'temp_' + codigo_barras)
+        ean = Code128(codigo_barras, writer=writer)
+        ean.save(temp_path)
+
+        # Carregar o código de barras gerado
+        barcode_img = Image.open(temp_path + '.png')
+        
+        # Redimensionar o código de barras para caber na etiqueta
+        barcode_width = int(width * 0.8)  # 80% da largura da etiqueta
+        ratio = barcode_width / barcode_img.width
+        barcode_height = int(barcode_img.height * ratio)
+        barcode_img = barcode_img.resize((barcode_width, barcode_height))
+
+        # Colar o código de barras na etiqueta
+        barcode_x = (width - barcode_width) // 2
+        barcode_y = height - barcode_height - 10
+        label.paste(barcode_img, (barcode_x, barcode_y))
+
+        # Salvar a etiqueta final
+        save_path = os.path.join(app.static_folder, 'barcodes', codigo_barras + '.png')
+        label.save(save_path, 'PNG')
+
+        # Limpar arquivo temporário
+        try:
+            os.remove(temp_path + '.png')
+        except:
+            pass
+
+        # Retornar o caminho relativo do arquivo PNG
+        return jsonify({
+            "path": f"/static/barcodes/{codigo_barras}.png",
+            "nome": nome
+        })
+
+    except Exception as e:
+        app.logger.error(f"Erro ao gerar código de barras para produto {id_produto}: {str(e)}")
+        return jsonify({
+            "error": "Erro ao gerar código de barras", 
+            "details": str(e)
+        }), 500
 
 
 def log_event(acao, tipo, quantidade=None, valor=None, produto_id=None, detalhe=None):
@@ -383,6 +692,8 @@ def criar_revendedor():
 def criar_venda():
     data = request.json or {}
     revendedor_id = data.get('id_revendedor')
+    cliente_id = data.get('id_cliente')
+    cliente_nome = data.get('cliente_nome')
     items = data.get('items') or []
     observacao = data.get('observacao')
 
@@ -415,8 +726,59 @@ def criar_venda():
                 conn.rollback(); conn.close()
                 return jsonify({'erro': 'Revendedor não encontrado.'}), 404
 
-        # create venda
-        cur.execute('INSERT INTO vendas (id_revendedor, observacao) VALUES (?, ?)', (revendedor_id, observacao))
+        # optional cliente existence check
+        if cliente_id is not None:
+            cur.execute('SELECT id_cliente FROM clientes WHERE id_cliente=?', (cliente_id,))
+            if not cur.fetchone():
+                conn.rollback(); conn.close()
+                return jsonify({'erro': 'Cliente não encontrado.'}), 404
+
+        # Ensure vendas table has optional client columns
+        cur2 = conn.cursor()
+        cur2.execute("PRAGMA table_info('vendas')")
+        cols = [r['name'] for r in cur2.fetchall()]
+        if 'id_cliente' not in cols:
+            cur2.execute('ALTER TABLE vendas ADD COLUMN id_cliente INTEGER')
+        if 'cliente_nome' not in cols:
+            cur2.execute("ALTER TABLE vendas ADD COLUMN cliente_nome TEXT")
+        # ensure discount and total columns exist so we can persist them when provided
+        if 'discount_percent' not in cols:
+            try:
+                cur2.execute('ALTER TABLE vendas ADD COLUMN discount_percent REAL')
+            except Exception:
+                pass
+        if 'total' not in cols:
+            try:
+                cur2.execute('ALTER TABLE vendas ADD COLUMN total REAL')
+            except Exception:
+                pass
+
+        # create venda (include optional fields)
+        insert_cols = ['id_revendedor', 'observacao']
+        insert_vals = [revendedor_id, observacao]
+        if cliente_id is not None:
+            insert_cols.append('id_cliente'); insert_vals.append(cliente_id)
+        if cliente_nome:
+            insert_cols.append('cliente_nome'); insert_vals.append(cliente_nome)
+        # optional financial fields
+        discount_percent = data.get('discount_percent')
+        total_final = data.get('total')
+        if discount_percent is not None:
+            try:
+                dp = float(discount_percent)
+                insert_cols.append('discount_percent'); insert_vals.append(dp)
+            except Exception:
+                pass
+        if total_final is not None:
+            try:
+                tf = float(total_final)
+                insert_cols.append('total'); insert_vals.append(tf)
+            except Exception:
+                pass
+
+        cols_sql = ','.join(insert_cols)
+        qmarks = ','.join('?' for _ in insert_vals)
+        cur.execute(f'INSERT INTO vendas ({cols_sql}) VALUES ({qmarks})', tuple(insert_vals))
         venda_id = cur.lastrowid
 
         # process each item: check stock and decrement
@@ -439,16 +801,25 @@ def criar_venda():
             # insert item
             cur.execute('INSERT INTO venda_items (id_venda, id_produto, quantidade, preco_unitario) VALUES (?, ?, ?, ?)', (venda_id, pid, qty, preco_unit))
 
-        # For each sold item, also register a movimentacao (saida) and log it
-        for it in items:
-            pid = int(it.get('id_produto'))
-            qty = int(it.get('quantidade'))
-            try:
+        # Register a single movimentacao summarizing the venda (saida)
+        try:
+            total_qty = 0
+            first_pid = None
+            for idx, it in enumerate(items):
+                pid = int(it.get('id_produto'))
+                qty = int(it.get('quantidade'))
+                total_qty += qty
+                if idx == 0:
+                    first_pid = pid
+            if first_pid is None:
+                first_pid = items[0]['id_produto'] if items else None
+            # insert one movimentacao linking to a representative product and total quantity
+            if first_pid is not None:
                 cur.execute('INSERT INTO movimentacoes (id_produto, tipo, quantidade, observacao, data_mov) VALUES (?, ?, ?, ?, datetime("now"))',
-                            (pid, 'saida', qty, f'Venda #{venda_id}'))
-            except Exception:
-                # ignore mov insertion failures but continue
-                pass
+                            (first_pid, 'saida', total_qty, f'Venda #{venda_id}'))
+        except Exception:
+            # ignore mov insertion failures but continue
+            pass
 
         conn.commit()
         conn.close()
@@ -464,9 +835,11 @@ def listar_vendas():
     limit = request.args.get('limit', type=int)
     conn = get_db()
     cur = conn.cursor()
-    q = '''SELECT v.id_venda, v.data_venda, v.observacao, r.id_revendedor, r.nome as revendedor_nome
+    q = '''SELECT v.id_venda, v.data_venda, v.observacao, r.id_revendedor, r.nome as revendedor_nome,
+                  v.id_cliente, COALESCE(c.nome, v.cliente_nome) as cliente_nome
            FROM vendas v
            LEFT JOIN revendedores r ON r.id_revendedor = v.id_revendedor
+           LEFT JOIN clientes c ON c.id_cliente = v.id_cliente
            ORDER BY v.data_venda DESC'''
     if limit and limit>0:
         q = q + f' LIMIT {limit}'
@@ -475,10 +848,45 @@ def listar_vendas():
     result = []
     for r in rows:
         result.append({
-            'id_venda': r[0], 'data_venda': r[1], 'observacao': r[2], 'id_revendedor': r[3], 'revendedor_nome': r[4]
+            'id_venda': r[0], 'data_venda': r[1], 'observacao': r[2], 'id_revendedor': r[3], 'revendedor_nome': r[4], 'id_cliente': r[5], 'cliente_nome': r[6]
         })
     conn.close()
     return jsonify(result)
+
+
+@app.route('/api/vendas/<int:id_venda>', methods=['GET'])
+def buscar_venda(id_venda):
+    conn = get_db()
+    cur = conn.cursor()
+    # select core fields and include optional columns if present
+    cur.execute("PRAGMA table_info('vendas')")
+    vcols = [r['name'] for r in cur.fetchall()]
+    extra = []
+    if 'discount_percent' in vcols: extra.append('v.discount_percent')
+    if 'total' in vcols: extra.append('v.total')
+    extras_sql = (', ' + ', '.join(extra)) if extra else ''
+    sql = f"SELECT v.id_venda, v.data_venda, v.observacao, v.id_revendedor, v.id_cliente, COALESCE(c.nome, v.cliente_nome) as cliente_nome{extras_sql} FROM vendas v LEFT JOIN clientes c ON c.id_cliente = v.id_cliente WHERE v.id_venda=?"
+    cur.execute(sql, (id_venda,))
+    vh = cur.fetchone()
+    if not vh:
+        conn.close()
+        return jsonify({'erro': 'Venda não encontrada'}), 404
+    venda = {
+        'id_venda': vh[0], 'data_venda': vh[1], 'observacao': vh[2], 'id_revendedor': vh[3], 'id_cliente': vh[4], 'cliente_nome': vh[5]
+    }
+    idx = 6
+    if 'discount_percent' in vcols:
+        venda['discount_percent'] = vh[idx]; idx += 1
+    if 'total' in vcols:
+        venda['total'] = vh[idx]; idx += 1
+    cur.execute('''SELECT vi.id_item, vi.id_produto, vi.quantidade, vi.preco_unitario, p.nome as produto_nome
+                   FROM venda_items vi LEFT JOIN produtos p ON p.id_produto = vi.id_produto WHERE vi.id_venda=?''', (id_venda,))
+    items = []
+    for it in cur.fetchall():
+        items.append({'id_item': it[0], 'id_produto': it[1], 'quantidade': it[2], 'preco_unitario': it[3], 'produto_nome': it[4]})
+    venda['items'] = items
+    conn.close()
+    return jsonify(venda)
 
 
 def validar_movimentacao_data(data):
@@ -622,6 +1030,7 @@ def deletar_movimentacao(id_mov):
     return jsonify({'mensagem': 'Movimentação removida.'})
 
 # Tratamento de erros HTTP
+
 @app.errorhandler(404)
 def not_found_error(error):
     return render_template('error.html', error='Página não encontrada'), 404

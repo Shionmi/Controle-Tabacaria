@@ -17,9 +17,25 @@
 
     <form id="saleForm" autocomplete="off">
         <div class="form-group">
-            <label>Revendedor</label>
-            <input type="text" id="revendedorNome" placeholder="Digite o nome do revendedor (opcional)">
-            <div id="revendedorList" style="display:none; background:#fff; border:1px solid #e5e7eb; border-radius:8px; margin-top:4px; max-height:200px; overflow-y:auto"></div>
+            <label>Cliente</label>
+            <div style="display:flex; gap:12px; align-items:center; margin-bottom:8px">
+                <label><input type="radio" name="cliente_mode" value="existing" checked> Cliente cadastrado</label>
+                <label><input type="radio" name="cliente_mode" value="manual"> Digitar nome</label>
+            </div>
+            <div id="clienteExisting">
+                <div class="client-combobox" style="display:flex; align-items:center; gap:6px;">
+                    <div style="flex:1; position:relative">
+                        <input type="text" id="clienteNome" placeholder="Buscar cliente cadastrado (opcional)" autocomplete="off" style="width:100%; padding-right:28px">
+                        <!-- dropdown list -->
+                        <div id="clienteList" style="display:none; position:absolute; left:0; right:0; background:#fff; border:1px solid #e5e7eb; border-radius:8px; margin-top:4px; max-height:200px; overflow-y:auto; z-index:50"></div>
+                    </div>
+                    <button id="clienteToggle" type="button" aria-label="Abrir lista de clientes" style="width:32px; height:32px; border-radius:6px; border:1px solid #ddd; background:#fff; cursor:pointer">▾</button>
+                </div>
+                <div id="clienteDetails" style="display:none; margin-top:8px; background:#fafafa; border:1px solid #eee; padding:8px; border-radius:6px; font-size:13px"></div>
+            </div>
+            <div id="clienteManual" style="display:none">
+                <input type="text" id="clienteManualNome" placeholder="Digite o nome do cliente">
+            </div>
         </div>
 
         <div class="items-list">
@@ -32,11 +48,16 @@
                     <button type="button" class="btn btn-danger btn-remove" onclick="this.closest('.item-row').remove(); updatePreview()" style="display:none">&times;</button>
                 </div>
             </div>
-            <button type="button" class="add-item-btn" onclick="addItemRow()">+ Adicionar Item</button>
+            <button type="button" class="add-item-btn">+ Adicionar Item</button>
 
             <div class="preview-panel">
                 <div id="previewItems"></div>
                 <div class="preview-total">Total: R$ <span id="previewTotal">0,00</span></div>
+                <div style="margin-top:8px; display:flex; gap:10px; align-items:center;">
+                    <label style="font-size:13px; color:var(--muted);">Desconto %</label>
+                    <input type="text" id="discountPercent" placeholder="ex: -10 ou 10" style="width:100px; padding:8px; border-radius:8px; border:1px solid #e6edf3" />
+                    <div style="margin-left:auto; font-weight:700">Total com desconto: R$ <span id="previewTotalAfter">0,00</span></div>
+                </div>
             </div>
         </div>
 
@@ -53,11 +74,13 @@
 {% endblock %}
 
 {% block extra_js %}
-<script>
+    <script>
     // Global state
     let produtos = [];
     let revendedores = [];
+    let clientes = [];
     let selectedRevendedor = null;
+    let selectedCliente = null;
 
     function showAlert(message, success=true) {
         const box = document.getElementById('alertBox');
@@ -74,6 +97,18 @@
         } catch(err) {
             console.error(err);
             showAlert('Erro ao carregar produtos. Tente recarregar a página.', false);
+        }
+    }
+
+    async function loadClientes() {
+        try {
+            const res = await fetch('/api/clientes');
+            if (!res.ok) throw new Error('Falha ao carregar clientes');
+            clientes = await res.json();
+            console.log('loadClientes: carregados', clientes.length, 'clientes');
+        } catch(err) {
+            console.error('Não foi possível carregar clientes', err);
+            clientes = [];
         }
     }
 
@@ -103,6 +138,8 @@
         }
         row.querySelector('select').addEventListener('change', updatePreview);
         row.querySelector('input').addEventListener('input', updatePreview);
+        // mark listeners attached to avoid double-binding if we scan rows later
+        row.dataset.listenersAttached = '1';
     }
 
     function updatePreview() {
@@ -123,7 +160,24 @@
         document.getElementById('previewItems').innerHTML = items.map(item => `
             <div class="preview-item"><div>${item.quantidade}x ${item.nome}</div><div>R$ ${item.subtotal.toFixed(2)}</div></div>
         `).join('');
+        // compute discount if provided (accept negative like '-10' as 10%)
+        let discountPercent = 0;
+        const discountEl = document.getElementById('discountPercent');
+        if (discountEl) {
+            const raw = (discountEl.value || '').toString().trim();
+            if (raw !== '') {
+                const parsed = parseFloat(raw.replace(',', '.'));
+                if (!isNaN(parsed)) {
+                    discountPercent = Math.abs(parsed);
+                    if (discountPercent > 100) discountPercent = 100;
+                }
+            }
+        }
+        const discountAmount = total * (discountPercent / 100);
+        const totalAfter = Math.max(0, total - discountAmount);
         document.getElementById('previewTotal').textContent = total.toFixed(2);
+        const afterEl = document.getElementById('previewTotalAfter');
+        if (afterEl) afterEl.textContent = totalAfter.toFixed(2);
     }
 
     document.addEventListener('submit', (e) => {}, true);
@@ -138,23 +192,69 @@
         });
         if (!items.length) { showAlert('Adicione pelo menos um item à venda.', false); return; }
         const payload = { items, observacao: document.getElementById('observacao').value.trim() };
-        if (selectedRevendedor) payload.id_revendedor = selectedRevendedor.id_revendedor;
-        else {
-            const nome = document.getElementById('revendedorNome').value.trim();
-            if (nome) {
+        // revendedor (opcional)
+        if (selectedRevendedor) {
+            payload.id_revendedor = selectedRevendedor.id_revendedor;
+        } else {
+            const revendedorEl = document.getElementById('revendedorNome');
+            const nomeRev = revendedorEl ? revendedorEl.value.trim() : '';
+            if (nomeRev) {
                 try {
-                    const res = await fetch('/api/revendedores', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({nome}) });
+                    const res = await fetch('/api/revendedores', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({nome: nomeRev}) });
                     if (!res.ok) throw new Error('Falha ao criar revendedor');
-                    const data = await res.json(); payload.id_revendedor = data.id_revendedor;
-                } catch(err) { console.error(err); showAlert('Erro ao criar revendedor. Tente novamente.', false); return; }
+                    const data = await res.json();
+                    payload.id_revendedor = data.id_revendedor;
+                } catch(err) {
+                    console.error(err);
+                    showAlert('Erro ao criar revendedor. Tente novamente.', false);
+                    return;
+                }
             }
+        }
+
+        // cliente: prefer selectedCliente (existing) else manual name
+        if (selectedCliente) {
+            payload.id_cliente = selectedCliente.id_cliente;
+        } else {
+            const clienteManual = document.getElementById('clienteManualNome').value.trim();
+            if (clienteManual) payload.cliente_nome = clienteManual;
+        }
+
+        // compute totals and discount to include in payload
+        try {
+            let total = 0;
+            items.forEach(it => {
+                const p = produtos.find(pr => pr.id_produto == it.id_produto);
+                if (p) total += (p.preco || 0) * (it.quantidade || 0);
+            });
+            // parse discount (accept -10 or 10 meaning 10%)
+            let discountPercent = 0;
+            const discountEl = document.getElementById('discountPercent');
+            if (discountEl) {
+                const raw = (discountEl.value || '').toString().trim();
+                if (raw !== '') {
+                    const parsed = parseFloat(raw.replace(',', '.'));
+                    if (!isNaN(parsed)) {
+                        discountPercent = Math.abs(parsed);
+                        if (discountPercent > 100) discountPercent = 100;
+                    }
+                }
+            }
+            const discountAmount = total * (discountPercent / 100);
+            const totalAfter = Math.max(0, total - discountAmount);
+            payload.discount_percent = discountPercent;
+            payload.total = parseFloat(totalAfter.toFixed(2));
+        } catch (err) {
+            console.error('Erro ao calcular total/discount:', err);
         }
         try {
             const res = await fetch('/api/vendas', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(payload) });
             const data = await res.json(); if (!res.ok) { showAlert(data.erro || 'Falha ao registrar venda.', false); return; }
             showAlert(`Venda #${data.id_venda} registrada com sucesso!`);
             document.querySelectorAll('.item-row').forEach((row,idx)=>{ if(idx===0){ row.querySelector('select').value=''; row.querySelector('input').value=''; } else row.remove(); });
-            document.getElementById('observacao').value=''; document.getElementById('revendedorNome').value=''; selectedRevendedor=null; updatePreview();
+            const obsEl = document.getElementById('observacao'); if (obsEl) obsEl.value='';
+            const revEl = document.getElementById('revendedorNome'); if (revEl) revEl.value='';
+            selectedRevendedor=null; updatePreview();
         } catch(err) { console.error(err); showAlert('Erro ao comunicar com o servidor.', false); }
     });
 
@@ -164,21 +264,147 @@
         try { const res = await fetch('/api/revendedores'); if (!res.ok) throw new Error(); revendedores = await res.json(); } catch(e){ revendedores = []; }
     }
 
+    // revendedor fields are optional in the form; guard access so missing elements don't break the script
     const revendedorInput = document.getElementById('revendedorNome');
     const revendedorList = document.getElementById('revendedorList');
-    revendedorInput.addEventListener('input', () => {
-        const val = revendedorInput.value.trim().toLowerCase(); if(!val){ revendedorList.style.display='none'; selectedRevendedor=null; return; }
-        const matches = revendedores.filter(r => r.nome.toLowerCase().includes(val)).slice(0,5);
-        if(!matches.length){ revendedorList.style.display='none'; selectedRevendedor=null; return; }
-        revendedorList.innerHTML = matches.map(r=>`<div class="typeahead-item" style="padding:8px 12px; cursor:pointer; border-bottom:1px solid #f3f3f3" onclick="selectRevendedor(${r.id_revendedor}, '${r.nome.replace("'","\'")}')">${r.nome}</div>`).join('');
-        revendedorList.style.display='block';
+    if (revendedorInput && revendedorList) {
+        revendedorInput.addEventListener('input', () => {
+            const val = revendedorInput.value.trim().toLowerCase(); if(!val){ revendedorList.style.display='none'; selectedRevendedor=null; return; }
+            const matches = revendedores.filter(r => r.nome.toLowerCase().includes(val)).slice(0,5);
+            if(!matches.length){ revendedorList.style.display='none'; selectedRevendedor=null; return; }
+            revendedorList.innerHTML = matches.map(r=>`<div class="typeahead-item" style="padding:8px 12px; cursor:pointer; border-bottom:1px solid #f3f3f3" onclick="selectRevendedor(${r.id_revendedor}, '${r.nome.replace("'","\\'")}')">${r.nome}</div>`).join('');
+            revendedorList.style.display='block';
+        });
+    }
+
+    // Client typeahead
+    const clienteInput = document.getElementById('clienteNome');
+    const clienteList = document.getElementById('clienteList');
+    const clienteManualInput = document.getElementById('clienteManualNome');
+    document.getElementsByName('cliente_mode').forEach(r => r.addEventListener('change', (e)=>{
+        if (e.target.value === 'existing') { document.getElementById('clienteExisting').style.display=''; document.getElementById('clienteManual').style.display='none'; }
+        else { document.getElementById('clienteExisting').style.display='none'; document.getElementById('clienteManual').style.display=''; selectedCliente=null; clienteList.style.display='none'; }
+    }));
+
+    clienteInput.addEventListener('input', ()=>{
+        const val = clienteInput.value.trim().toLowerCase();
+        if(!val){ clienteList.style.display='none'; selectedCliente=null; return; }
+        const matches = clientes.filter(c => (c.nome||'').toLowerCase().includes(val)).slice(0,6);
+        if(!matches.length){
+            clienteList.innerHTML = '<div style="padding:8px 12px;color:#666">Nenhum cliente encontrado</div>';
+            clienteList.style.display='block';
+            selectedCliente=null; return;
+        }
+        // build list with clickable rows
+        clienteList.innerHTML = matches.map(c=>`<div class="typeahead-item" tabindex="0" style="padding:8px 12px; cursor:pointer; border-bottom:1px solid #f3f3f3" data-id="${c.id_cliente}" data-nome="${(c.nome||'').replace("'","\\'")}">${c.nome}</div>`).join('');
+        clienteList.style.display='block';
+        // attach keyboard/click handlers
+        clienteList.querySelectorAll('.typeahead-item').forEach(it=>{
+            it.addEventListener('click', ()=> selectCliente(it.dataset.id, it.dataset.nome));
+            it.addEventListener('keydown', (ev)=>{ if(ev.key==='Enter') selectCliente(it.dataset.id, it.dataset.nome); });
+        });
     });
 
-    function selectRevendedor(id,nome){ selectedRevendedor={id_revendedor:id,nome}; revendedorInput.value=nome; revendedorList.style.display='none'; }
+    function selectCliente(id,nome){
+        selectedCliente={id_cliente:parseInt(id),nome};
+        clienteInput.value=nome;
+        clienteList.style.display='none';
+        // load full cliente info and display
+        loadAndFillClient(parseInt(id));
+        // close toggle state
+        dropdownOpen = false; clienteToggle.textContent = '▾';
+    }
 
-    document.addEventListener('click',(e)=>{ if(!revendedorList.contains(e.target) && e.target!==revendedorInput) revendedorList.style.display='none'; });
+    // Load cliente details and show in panel
+    async function loadAndFillClient(id){
+        try{
+            const res = await fetch(`/api/clientes/${id}`);
+            if(!res.ok) throw new Error('Cliente não encontrado');
+            const c = await res.json();
+            const details = document.getElementById('clienteDetails');
+            details.innerHTML = `
+                <div style="font-weight:700">${c.nome || ''}</div>
+                <div>CPF: ${c.cpf || '-'}</div>
+                <div>Telefone: ${c.telefone || '-'}</div>
+                <div>E-mail: ${c.email || '-'}</div>
+                <div>${(c.endereco|| '-')}, ${(c.cidade||'-')} ${(c.estado||'')}</div>
+            `;
+            details.style.display = '';
+            // store selectedCliente with full data
+            selectedCliente = c;
+        }catch(err){ console.error(err); }
+    }
 
-    // Init
-    loadProdutos(); loadRevendedores();
+    // Unified click handler that safely hides optional typeahead lists when clicking outside.
+    document.addEventListener('click',(e)=>{
+        try {
+            if (revendedorList && revendedorInput && !revendedorList.contains(e.target) && e.target !== revendedorInput) revendedorList.style.display = 'none';
+        } catch(_){}
+        try {
+            if (clienteList && clienteInput && !clienteList.contains(e.target) && e.target !== clienteInput) clienteList.style.display = 'none';
+        } catch(_){}
+    });
+
+    function selectRevendedor(id,nome){ selectedRevendedor={id_revendedor:id,nome}; if(revendedorInput) revendedorInput.value=nome; if(revendedorList) revendedorList.style.display='none'; }
+
+    // keyboard support: Enter selects first match
+    clienteInput.addEventListener('keydown', (e)=>{
+        if(e.key === 'Enter'){
+            if(clienteList.style.display === 'block'){
+                e.preventDefault();
+                const first = clienteList.querySelector('.typeahead-item');
+                if(first){
+                    first.click();
+                } else {
+                    // try exact match
+                    const val = clienteInput.value.trim().toLowerCase();
+                    const exact = clientes.find(c => (c.nome||'').toLowerCase() === val);
+                    if(exact) selectCliente(exact.id_cliente, exact.nome);
+                }
+            } else {
+                // if no dropdown visible, try to find exact
+                const val = clienteInput.value.trim().toLowerCase();
+                const exact = clientes.find(c => (c.nome||'').toLowerCase() === val);
+                if(exact){ e.preventDefault(); selectCliente(exact.id_cliente, exact.nome); }
+            }
+        }
+    });
+
+    // arrow toggle behaviour
+    const clienteToggle = document.getElementById('clienteToggle');
+    let dropdownOpen = false;
+    clienteToggle.addEventListener('click', ()=>{
+        if(dropdownOpen){ clienteList.style.display='none'; dropdownOpen=false; clienteToggle.textContent='▾'; return; }
+        // show first N clients
+        const matches = clientes.slice(0,12);
+        if(!matches.length){ clienteList.innerHTML = '<div style="padding:8px 12px;color:#666">Nenhum cliente cadastrado</div>'; clienteList.style.display='block'; clienteToggle.textContent='▴'; dropdownOpen=true; return; }
+        clienteList.innerHTML = matches.map(c=>`<div class="typeahead-item" tabindex="0" style="padding:8px 12px; cursor:pointer; border-bottom:1px solid #f3f3f3" data-id="${c.id_cliente}" data-nome="${(c.nome||'').replace("'","\\'")}">${c.nome}</div>`).join('');
+        clienteList.style.display='block'; clienteToggle.textContent='▴'; dropdownOpen=true;
+        clienteList.querySelectorAll('.typeahead-item').forEach(it=>{
+            it.addEventListener('click', ()=> selectCliente(it.dataset.id, it.dataset.nome));
+            it.addEventListener('keydown', (ev)=>{ if(ev.key==='Enter') selectCliente(it.dataset.id, it.dataset.nome); });
+        });
+    });
+
+    // Attach listeners to existing item rows (for the initial static row)
+    function attachItemRowListeners(){
+        document.querySelectorAll('.item-row').forEach(row=>{
+            // avoid attaching twice
+            if(row.dataset.listenersAttached) return;
+            const sel = row.querySelector('.produto-select');
+            const qty = row.querySelector('.quantidade-input');
+            if(sel) sel.addEventListener('change', updatePreview);
+            if(qty) qty.addEventListener('input', updatePreview);
+            row.dataset.listenersAttached = '1';
+        });
+    }
+
+    // Init: load data, then attach listeners so the initial row updates immediately
+    loadProdutos().then(()=> attachItemRowListeners());
+    loadRevendedores(); loadClientes();
+
+    // discount input updates preview
+    const discountInputEl = document.getElementById('discountPercent');
+    if (discountInputEl) discountInputEl.addEventListener('input', updatePreview);
 </script>
 {% endblock %}

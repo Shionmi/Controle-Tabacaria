@@ -7,12 +7,12 @@
     /* small dashboard helpers */
     .dash-grid{ display:grid; grid-template-columns:repeat(3,1fr); gap:16px }
     @media(max-width:980px){ .dash-grid{ grid-template-columns:repeat(1,1fr) } }
-    .dash-card{ background:linear-gradient(180deg,#fff,#fff); padding:18px; border-radius:12px; box-shadow:0 8px 30px rgba(0,0,0,0.06); display:flex; align-items:center; gap:12px }
+    .dash-card{ background:linear-gradient(180deg,#331a1a,#ff6f6f); padding:18px; border-radius:12px; box-shadow:0 8px 30px rgba(0,0,0,0.06); display:flex; align-items:center; gap:12px }
     .dash-card .icon{ width:56px; height:56px; border-radius:10px; display:flex; align-items:center; justify-content:center; font-size:22px }
     .dash-card .meta{ flex:1 }
     .dash-card h3{ margin:0; font-size:16px }
     .dash-card p{ margin:6px 0 0; color:var(--muted) }
-    .recent-list li{ padding:8px 0; border-bottom:1px dashed #f3f3f3 }
+    .recent-list li{ padding:8px 0; border-bottom:1px dashed #271c1c }
 </style>
 {% endblock %}
 
@@ -36,7 +36,7 @@
     <h2>Visão Geral</h2>
     <div class="dash-grid">
         <div class="dash-card" onclick="location.href='/estoque'" style="cursor:pointer">
-            <div class="icon" style="background:linear-gradient(90deg,var(--accent-1),var(--accent-2)); color:white">
+            <div class="icon" style="background:linear-gradient(90deg,var(--accent-1),var(--accent-2)); color:rgb(223, 214, 214)">
                 <i class="fa-solid fa-box-open"></i>
             </div>
             <div class="meta">

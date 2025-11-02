@@ -49,6 +49,21 @@ CREATE TABLE IF NOT EXISTS venda_items (
   FOREIGN KEY (id_produto) REFERENCES produtos(id_produto) ON DELETE RESTRICT
 );
 
+CREATE TABLE IF NOT EXISTS clientes (
+  id_cliente INTEGER PRIMARY KEY AUTOINCREMENT,
+  nome TEXT NOT NULL,
+  cpf TEXT UNIQUE,
+  telefone TEXT NOT NULL,
+  email TEXT,
+  endereco TEXT,
+  cidade TEXT,
+  estado TEXT,
+  observacoes TEXT,
+  ultima_compra TEXT,
+  criado_em TEXT DEFAULT (datetime('now')),
+  atualizado_em TEXT DEFAULT (datetime('now'))
+);
+
 CREATE TABLE IF NOT EXISTS logs (
   id_log INTEGER PRIMARY KEY AUTOINCREMENT,
   criado_em TIMESTAMP DEFAULT (datetime('now')),

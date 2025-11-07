@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Erro - Sistema de Estoque</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <div class="container">
+        <div class="error-container">
+            <img src="{{ url_for('static', filename='Images/Logo_tabacaria.png') }}" alt="Logo" class="logo">
+            <h1>Oops! Algo deu errado</h1>
+            <p class="error-message">{{ error }}</p>
+            <div class="error-actions">
+                <a href="{{ url_for('index') }}" class="btn btn-primary">Voltar ao Início</a>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

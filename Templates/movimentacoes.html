@@ -1,0 +1,190 @@
+{% extends "base.html" %}
+
+{% block title %}Histórico de Movimentações{% endblock %}
+
+{% block content %}
+<div class="header">
+    <img src="{{ url_for('static', filename='Images/Logo_tabacaria.png') }}" alt="Logo" class="logo">
+    <div>
+        <h1>Histórico de Movimentações</h1>
+        <p class="muted">Entradas e saídas de estoque</p>
+    </div>
+</div>
+
+    <div class="panel" style="margin-top:16px">
+      <h2>Últimas Movimentações</h2>
+      <div id="movAlert"></div>
+
+      <div style="display:flex; gap:8px; margin-bottom:12px; align-items:center">
+        <input id="q" placeholder="Pesquisar produto ou observação" style="flex:1; padding:8px 10px; border-radius:8px; border:1px solid #e6edf3">
+        <input id="start_date" type="date" style="padding:8px 10px; border-radius:8px; border:1px solid #e6edf3">
+        <input id="end_date" type="date" style="padding:8px 10px; border-radius:8px; border:1px solid #e6edf3">
+        <button class="btn btn-primary" id="btnFilter">Filtrar</button>
+        <button class="btn btn-ghost" id="btnClear">Limpar</button>
+      </div>
+
+      <table class="table" id="movTable">
+        <thead>
+          <tr>
+            <th>ID Venda</th>
+            <th>Nome</th>
+            <th>Data</th>
+            <th>Ações</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr><td colspan="6">Carregando...</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <script>
+    const API = '/api/movimentacoes';
+    const tableBody = document.querySelector('#movTable tbody');
+    const movAlert = document.getElementById('movAlert');
+  const vendaCache = {};
+
+    function showAlert(msg, ok=true){ movAlert.innerHTML = `<div class="alert ${ok? 'alert-success':'alert-danger'}">${msg}</div>`; setTimeout(()=>movAlert.innerHTML='',5000); }
+
+    async function loadMov(limit=100){
+  tableBody.innerHTML = '<tr><td colspan="4">Carregando...</td></tr>';
+      try{
+        const q = document.getElementById('q').value.trim();
+        const start = document.getElementById('start_date').value || null;
+        const end = document.getElementById('end_date').value || null;
+        const params = new URLSearchParams();
+        if(limit) params.set('limit', limit);
+        if(q) params.set('q', q);
+        if(start) params.set('start_date', start + ' 00:00:00');
+        if(end) params.set('end_date', end + ' 23:59:59');
+
+        const res = await fetch(API + '?' + params.toString());
+        if(!res.ok) throw new Error('Falha ao carregar movimentações');
+        const data = await res.json();
+  if(!data.length) { tableBody.innerHTML = '<tr><td colspan="4">Nenhuma movimentação encontrada</td></tr>'; return }
+        // detect sales and prefetch venda headers so we can display id, cliente and date immediately
+        const vendaRe = /Venda\s*#(\d+)/i;
+        const vendaIds = [];
+        const movMap = {};
+        for(const m of data){
+            const match = (m.observacao||'').match(vendaRe);
+            if(match){
+                const vendaId = parseInt(match[1]);
+                vendaIds.push({movId: m.id_mov, vendaId});
+                movMap[m.id_mov] = m;
+            }
+        }
+    // fetch all vendas in parallel and cache them
+    await Promise.all(vendaIds.map(async pair => {
+      try{
+        const res = await fetch(`/api/vendas/${pair.vendaId}`);
+        if(res.ok){ vendaCache[pair.movId] = await res.json(); }
+      }catch(e){ /* ignore */ }
+    }));
+
+        const rowsOut = [];
+        for(const m of data){
+            const pair = vendaIds.find(v => v.movId === m.id_mov);
+            if(pair){
+                const venda = vendaCache[m.id_mov] || {};
+                const clienteNome = venda.cliente_nome || '-';
+                const vendaId = pair.vendaId;
+                // row: id da venda, nome, data, actions
+                rowsOut.push(`
+                  <tr data-mov="${m.id_mov}" data-venda="${vendaId}">
+                    <td>${vendaId}</td>
+                    <td>${escapeHtml(clienteNome)}</td>
+                    <td>${m.data_mov}</td>
+                    <td>
+                      <button class="btn btn-ghost" id="toggle-${m.id_mov}" onclick="toggleDetails(${m.id_mov})">▾</button>
+                      <button class="btn btn-danger" onclick="deleteMov(${m.id_mov})">Remover</button>
+                    </td>
+                  </tr>
+                  <tr id="details-${m.id_mov}" style="display:none; background:#fafafa"><td colspan="4">&nbsp;</td></tr>
+                `);
+            } else {
+                rowsOut.push(`
+                  <tr>
+                    <td></td>
+                    <td>${escapeHtml(m.produto_nome||'')}</td>
+                    <td>${escapeHtml(m.data_mov||'')}</td>
+                    <td><button class="btn btn-danger" onclick="deleteMov(${m.id_mov})">Remover</button></td>
+                  </tr>
+                `);
+            }
+        }
+  tableBody.innerHTML = rowsOut.join('');
+      }catch(err){ console.error(err); tableBody.innerHTML = '<tr><td colspan="6">Erro ao carregar</td></tr>'; }
+    }
+
+  // fetch venda data and populate details; called by toggleDetails
+  async function loadVendaForMov(movId){
+    try{
+      const row = document.querySelector(`tr[data-mov="${movId}"]`);
+      if(!row) return null;
+      const vendaId = row.getAttribute('data-venda');
+      if(!vendaId) return null;
+      // try cache first
+      let venda = vendaCache[movId] || null;
+      if(!venda){
+        const res = await fetch(`/api/vendas/${vendaId}`);
+        if(!res.ok) return null;
+        venda = await res.json();
+        vendaCache[movId] = venda;
+      }
+      // build details html
+      const items = (venda.items||[]).map(it=>`<tr><td style="padding:6px">${escapeHtml(it.produto_nome||'')}</td><td style="padding:6px; text-align:center">${it.quantidade}</td><td style="padding:6px; text-align:right">R$ ${parseFloat(it.preco_unitario||0).toFixed(2)}</td></tr>`).join('');
+      const total = venda.total ? `R$ ${parseFloat(venda.total).toFixed(2)}` : '-';
+                // format details as requested: list of '- Produto x QTY UN' and totals + desconto
+                const totalBruto = (venda.items||[]).reduce((s,it)=> s + (parseFloat(it.preco_unitario||0) * (parseInt(it.quantidade)||0)), 0);
+                const discountPercent = venda.discount_percent !== undefined && venda.discount_percent !== null ? parseFloat(venda.discount_percent) : 0;
+                const discountAmount = totalBruto * (Math.abs(discountPercent) / 100);
+                const totalAfter = totalBruto - discountAmount;
+                const itemsLines = (venda.items||[]).map(it => `- ${escapeHtml(it.produto_nome||'')} x ${it.quantidade} UN`).join('<br>');
+                const detailHtml = `
+        <div style="padding:8px; border-radius:6px; font-size:14px">
+          <div style="font-weight:700; margin-bottom:8px">Venda #${venda.id_venda} — Cliente: ${escapeHtml(venda.cliente_nome||'')}</div>
+          <div style="margin-bottom:8px">${itemsLines}</div>
+          <div style="margin-top:8px">Total: <strong>R$ ${totalBruto.toFixed(2)}</strong></div>
+          <div>Desconto: <strong>${discountPercent ? (discountPercent + '%') : '-'} </strong></div>
+          <div>Total com Desconto: <strong>R$ ${totalAfter.toFixed(2)}</strong></div>
+        </div>
+      `;
+      const detailsRow = document.getElementById(`details-${movId}`);
+      if(detailsRow) detailsRow.firstElementChild.innerHTML = detailHtml;
+      return venda;
+    }catch(e){ console.error('Erro ao carregar venda', e); return null }
+  }
+
+  function toggleDetails(movId){
+    const detailsRow = document.getElementById(`details-${movId}`);
+    if(!detailsRow) return;
+    const isHidden = detailsRow.style.display === 'none' || detailsRow.style.display === '';
+    if(isHidden){
+      // load data once when opening
+      if(!detailsRow.dataset.loaded){
+        loadVendaForMov(movId).then(()=>{ detailsRow.dataset.loaded = '1'; });
+      }
+      detailsRow.style.display = 'table-row';
+      const btn = document.getElementById(`toggle-${movId}`); if(btn) btn.textContent = '▴';
+    } else {
+      detailsRow.style.display = 'none';
+      const btn = document.getElementById(`toggle-${movId}`); if(btn) btn.textContent = '▾';
+    }
+  }
+
+    function escapeHtml(s){ if(!s) return ''; return s.replace(/[&<>\"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','\"':'&quot;',"'":"&#39;"})[c]); }
+
+    async function deleteMov(id){ if(!confirm('Confirma remover esta movimentação?')) return; try{ const res = await fetch(API+'/'+id,{method:'DELETE'}); const data = await res.json().catch(()=>({})); if(!res.ok){ showAlert(data.erro||'Falha', false); return } showAlert(data.mensagem||'Removido'); loadMov(100); }catch(e){ console.error(e); showAlert('Erro ao comunicar com o servidor', false); } }
+
+  document.getElementById('btnFilter').addEventListener('click', ()=> loadMov(100));
+  document.getElementById('btnClear').addEventListener('click', ()=>{ document.getElementById('q').value=''; document.getElementById('start_date').value=''; document.getElementById('end_date').value=''; loadMov(100); });
+  loadMov(100);
+  </script>
+  {% endblock %}
+  {% block scripts %}
+    <script>
+      loadMov(100);
+    </script>
+  {% endblock %}

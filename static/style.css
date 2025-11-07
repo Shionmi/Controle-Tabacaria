@@ -1,0 +1,540 @@
+/* Bold modern theme with larger brand presence */
+*{ box-sizing: border-box; margin:0; padding:0 }
+:root {
+    /* Tema Escuro - Cores Base */
+    --primary: #e2e8f0;         /* Texto principal (claro) */
+    --secondary: #94a3b8;       /* Texto secundário */
+    --accent: #3b82f6;          /* Destaque azul */
+    
+    /* Cores de Ação */
+    --action-alert: #ef4444;    /* Vermelho alertas */
+    --action-neutral: #4b5563;  /* Cinza neutro */
+    
+    /* Cores de Fundo */
+    --background: #0f172a;      /* Fundo escuro principal */
+    --card-background: #1e293b; /* Fundo dos cards */
+    --text-color: #f1f5f9;      /* Texto claro */
+    --drawer-bg: rgba(15,23,42,0.98); /* Menu lateral */
+    
+    /* Mantendo os mesmos efeitos */
+    --shadow-subtle: 0 8px 24px rgba(0, 0, 0, 0.2);
+    --border-radius: 6px;
+    --transition-speed: 0.3s;
+
+    /* Cores auxiliares para compatibilidade */
+    --success: #10b981;
+    --danger: var(--action-alert);
+    --muted: #64748b;
+    --accent-1: #60a5fa;
+    --accent-2: #2563eb;
+}
+
+html, body { height:100%; font-family: 'Inter', 'Georgia', sans-serif; background:var(--background); color:var(--text-color) }
+.container{ max-width:1200px; margin:36px auto; padding:24px }
+
+/* Larger logo and striking header */
+.header .logo{ width:120px; height:auto; border-radius:14px; box-shadow: 0 12px 36px rgba(0,0,0,0.2) }
+.header{ 
+    background: linear-gradient(135deg, rgba(59,130,246,0.08), rgba(29,78,216,0.04)); 
+    backdrop-filter: blur(12px);
+    border: 1px solid rgba(255,255,255,0.06);
+}
+
+/* Header */
+.header{ display:flex; gap:18px; align-items:center; padding:18px; border-radius:12px; box-shadow:var(--shadow-subtle) }
+.header .logo{ width:84px; height:auto; border-radius:10px }
+.header h1{ font-size:20px; color:var(--text-color); margin-bottom:4px }
+.header p{ color:rgba(51,51,51,0.7); font-size:13px; margin:0 }
+.header .header-actions{ margin-left:auto; display:flex; gap:10px; align-items:center }
+
+/* Panels */
+.panel{ 
+    background: var(--card-background);
+    padding: 20px; 
+    border-radius: 12px; 
+    /* Mudando a sombra vermelha para uma mais suave */
+    box-shadow: 0 10px 30px rgba(15, 23, 42, 0.1);
+}
+.panel + .panel{ margin-top:18px }
+.panel h2{ 
+    /* Mudando o texto vermelho para um tom mais profissional */
+    color: var(--primary);
+    font-size: 18px; 
+    margin-bottom: 16px;
+}
+/* decorative heading bar */
+.panel h2{ position:relative; padding-left:12px }
+.panel h2:before{ content:''; position:absolute; left:0; top:6px; width:6px; height:26px; border-radius:4px; background: linear-gradient(180deg,var(--accent-1),var(--accent-2)); box-shadow:0 6px 18px rgba(124,154,146,0.06) }
+
+/* Layout */
+.main-grid{ display:grid; grid-template-columns: 1fr 420px; gap:20px; align-items:start }
+@media (max-width:980px){ .main-grid{ grid-template-columns: 1fr } }
+
+/* Forms */
+.form-group{ margin-bottom:12px }
+.form-group label{ display:block; color:var(--muted); font-size:13px; margin-bottom:6px }
+.form-group input, .form-group textarea, .form-group select{ width:100%; padding:10px 12px; border-radius:10px; border:1px solid #e6edf3; background:#fbfeff; font-size:14px; transition:box-shadow .18s, transform .12s }
+.form-group input:focus, .form-group textarea:focus, .form-group select:focus{ outline:none; box-shadow:0 6px 20px rgba(185,28,28,0.12); transform:translateY(-1px) }
+.form-row{ display:grid; grid-template-columns: 1fr 1fr; gap:12px }
+
+/* Buttons */
+.btn{ display:inline-flex; align-items:center; justify-content:center; gap:8px; padding:10px 14px; border-radius:10px; border:0; cursor:pointer; font-weight:600; transition: transform .12s, box-shadow .12s }
+.btn:active{ transform:translateY(1px) }
+
+/* Navegação por grupos */
+.nav-group { 
+    margin: 15px 0;
+    padding-top: 15px;
+    border-top: 1px solid rgba(255,255,255,0.1);
+}
+
+.nav-group-title {
+    display: block;
+    color: #adacff;
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin: 0 15px 10px;
+    font-weight: 500;
+}
+.btn-primary{ background: var(--primary); color:white; box-shadow:0 8px 26px rgba(0,0,0,0.12) }
+.btn-secondary{ background: #f3f4f6; color:#111827; border:1px solid #e6edf3 }
+.btn-danger{ background:var(--danger); color:white }
+.btn-ghost{ background:transparent; color:var(--muted); border:1px dashed #e6edf3 }
+.btn:hover{ transform:translateY(-3px) }
+
+/* Table */
+.table-wrap{ overflow:auto }
+table{ width:100%; border-collapse:collapse; font-size:14px }
+th,td{ text-align:left; padding:12px 10px; border-bottom:1px solid #f1f5f9 }
+th{ 
+    color: var(--primary);
+    font-weight: 700;
+    font-size: 13px;
+    background: linear-gradient(90deg, rgba(59,130,246,0.04), transparent);
+}
+tr:hover td{ 
+    background: linear-gradient(90deg, rgba(59,130,246,0.02), transparent);
+}
+
+.action-buttons{ display:flex; gap:8px }
+.badge{ padding:6px 10px; border-radius:999px; font-weight:700; font-size:12px }
+.badge-success{ background: rgba(16, 185, 129, 0.1); color: #10b981; border: 1px solid rgba(16, 185, 129, 0.2); }
+.badge-danger{ background: rgba(239, 68, 68, 0.1); color: #ef4444; border: 1px solid rgba(239, 68, 68, 0.2); }
+
+/* Cards / Stats */
+.stats{ display:flex; gap:12px; margin-bottom:10px }
+.stat{ background:linear-gradient(180deg,#ffffff,#fbfdff); padding:12px 14px; border-radius:10px; box-shadow:0 8px 24px rgba(2,6,23,0.04) }
+.stat h3{ margin:0; font-size:14px }
+.stat p{ margin:6px 0 0; font-weight:700 }
+
+/* small ornament under header */
+.header { border-bottom:1px solid rgba(0,0,0,0.04) }
+
+/* little icon spacing for buttons */
+.btn svg, .btn img{ width:18px; height:18px; display:inline-block; vertical-align:middle }
+.btn{ gap:10px }
+
+/* Modal */
+.modal{ display:none; position:fixed; inset:0; background: rgba(2,6,23,0.6); align-items:center; justify-content:center; z-index:90 }
+.modal {
+    background: rgba(15, 23, 42, 0.8);
+    backdrop-filter: blur(8px);
+}
+
+.modal-content {
+    background: var(--card-background);
+    border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+/* Etiqueta e área de impressão */
+.print-area {
+    padding: 10px;
+}
+
+.etiqueta {
+    width: 5cm; /* 5cm largura */
+    height: 3cm; /* 3cm altura */
+    background: white;
+    padding: 0.2cm;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto;
+}
+
+#printBarcodeImg {
+    width: 4.6cm; /* Deixa margem para a borda */
+    height: auto;
+    margin-bottom: 0.2cm;
+}
+
+.product-name {
+    font-size: 24px;
+    text-align: center;
+    margin-top: -0.5cm;
+    font-family: Arial, sans-serif;
+    word-wrap: break-word;
+    width: 100%;
+}
+
+/* Media Query para Impressão */
+@media print {
+    body * {
+        visibility: hidden;
+    }
+    .print-area, .print-area * {
+        visibility: visible;
+    }
+    .print-area {
+        position: absolute;
+        left: 0;
+        top: 0;
+        padding: 0;
+    }
+    .modal {
+        background: none;
+        align-items: flex-start;
+        justify-content: flex-start;
+    }
+    .modal-content {
+        box-shadow: none;
+        padding: 0;
+        margin: 0;
+    }
+    .btn {
+        display: none;
+    }
+}
+.modal.active { display: flex; }
+
+.print-modal-content {
+    background: white;
+    padding: 20px;
+    border-radius: 8px;
+    min-width: 400px;
+}
+
+/* Área de impressão */
+.print-area {
+    background: var(--card-background);
+    box-shadow: 0 8px 24px rgba(15, 23, 42, 0.2);
+    padding: 20px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 200px;
+}
+
+.print-area img {
+    max-width: 300px;
+    height: auto;
+    display: block;
+    margin: 0 auto;
+}
+
+/* Ajustes para impressão */
+@media print {
+    body * {
+        visibility: hidden;
+    }
+    .print-area, .print-area * {
+        visibility: visible;
+    }
+    .print-area {
+        position: fixed;
+        left: 0;
+        top: 0;
+        width: 100%;
+        height: 100%;
+        margin: 0;
+        padding: 0;
+    }
+    .print-modal-content {
+        border: none;
+        box-shadow: none;
+    }
+    .btn-secondary {
+        display: none;
+    }
+}
+.modal.active { display: flex; }
+
+/* Área de impressão */
+.print-area {
+    background: white;
+    padding: 20px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 200px;
+}
+
+/* Ajustes para impressão */
+@media print {
+    body * {
+        visibility: hidden;
+    }
+    .print-area, .print-area * {
+        visibility: visible;
+    }
+    .print-area {
+        position: fixed;
+        left: 0;
+        top: 0;
+        width: 100%;
+        height: 100%;
+    }
+    .print-modal-content {
+        border: none;
+        box-shadow: none;
+        padding: 0;
+    }
+}
+.modal.active{ display:flex }
+.modal-content{ width:100%; max-width:520px; background:var(--card); padding:20px; border-radius:12px }
+
+/* small utilities */
+.muted{ color:var(--muted) }
+.text-center{ text-align:center }
+
+/* Alerts */
+.alert{ padding:10px 14px; border-radius:8px; margin-bottom:12px; font-weight:600 }
+.alert-success{ 
+    background: rgba(16, 185, 129, 0.1); 
+    color: #10b981; 
+    border: 1px solid rgba(16, 185, 129, 0.2); 
+}
+.alert-danger{ 
+    background: rgba(239, 68, 68, 0.1); 
+    color: #ef4444; 
+    border: 1px solid rgba(239, 68, 68, 0.2); 
+}
+
+/* Side Drawer Navigation */
+.side-drawer {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 300px;
+        height: 100vh;
+        background: var(--drawer-bg);
+        box-shadow: var(--shadow-subtle);
+        color: var(--background);
+        transition: transform var(--transition-speed) ease;
+        z-index: 1000;
+        padding: 20px;
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+        transform: translateX(-100%);
+}
+
+.side-drawer.active { transform: translateX(0); }
+
+.side-drawer .drawer-logo { border-bottom: 1px solid rgba(255,255,255,0.06); margin-bottom: 15px; padding-bottom:12px }
+
+.side-drawer a { color: var(--text-color); text-decoration: none; padding: 14px 25px; display:flex; align-items:center; gap:15px; transition: background-color var(--transition-speed), transform 0.2s ease-out }
+.side-drawer a:hover { 
+    background-color: rgba(59,130,246,0.08);
+    transform: translateX(5px);
+    font-weight: 500;
+}
+.side-drawer a.active { background-color: var(--primary); box-shadow: inset 5px 0 0 0 var(--accent); color: var(--card-background); font-weight:700 }
+
+.side-drawer .nav-item { display:flex; align-items:center; gap:12px }
+.side-drawer .nav-item i { width:24px; text-align:center }
+
+.drawer-handle { position: absolute; top: 50%; right: -28px; width:28px; height:68px; background: var(--primary); border-radius: 0 8px 8px 0; display:flex; align-items:center; justify-content:center; color:var(--card-background); cursor:pointer; transform:translateY(-50%) }
+.drawer-handle:after { content: '≡'; font-size:20px }
+
+/* Drawer Handle */
+.drawer-handle {
+  position: absolute;
+  top: 50%;
+  right: -24px;
+  width: 24px;
+  height: 60px;
+  background: var(--accent-1);
+  border-radius: 0 8px 8px 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  cursor: pointer;
+  transform: translateY(-50%);
+}
+
+.drawer-handle:after {
+  content: "≡";
+  font-size: 20px;
+}
+
+/* Logo in drawer */
+.side-drawer .drawer-logo {
+  padding: 20px 0;
+  text-align: center;
+}
+
+.side-drawer .drawer-logo img {
+  width: 100px;
+  height: auto;
+}
+
+/* Floating fullscreen button */
+#floatingFullscreen{ position:fixed; left:16px; bottom:16px; z-index:2000; padding:10px 12px; border-radius:10px; background:var(--card); border:1px solid #eef2ff; box-shadow:0 8px 24px rgba(2,6,23,0.06); cursor:pointer }
+#floatingFullscreen {
+    background: var(--card-background);
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    box-shadow: 0 8px 24px rgba(15, 23, 42, 0.12);
+}
+
+/* subtle entrance animation for panels */
+@keyframes fadeInUp{ from{ opacity:0; transform:translateY(8px) } to{ opacity:1; transform:none } }
+.panel{ animation: fadeInUp .28s ease both }
+
+/* Button primary with border/shine animation */
+.button-primary, .btn-primary {
+    background: var(--primary);
+    color: var(--card-background);
+    border: 2px solid var(--primary);
+    border-radius: var(--border-radius);
+    padding: 10px 20px;
+    cursor: pointer;
+    position: relative;
+    overflow: hidden;
+    transition: all var(--transition-speed);
+}
+.button-primary::after, .btn-primary::after {
+    content: '';
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    top: 0; left: 0;
+    background-color: rgba(255,255,255,0.12);
+    transform: scaleX(0);
+    transform-origin: left;
+    transition: transform 0.4s ease-out;
+    z-index:1;
+}
+.button-primary:hover::after, .btn-primary:hover::after { transform: scaleX(1); }
+.button-primary:hover, .btn-primary:hover { 
+    box-shadow: 0 8px 30px rgba(59,130,246,0.2);
+    transform: translateY(-2px) 
+}
+
+/* Botão de Remover/Excluir */
+.button-alert, .btn-danger {
+    background: var(--action-alert);
+    color: var(--text-color);
+    border: none;
+    border-radius: var(--border-radius);
+    padding: 10px 20px;
+    cursor: pointer;
+    transition: all var(--transition-speed);
+    position: relative;
+    overflow: hidden;
+}
+.button-alert:hover, .btn-danger:hover {
+    background: #FF4500;
+    box-shadow: 0 4px 10px rgba(220, 20, 60, 0.5);
+    transform: translateY(-1px);
+}
+
+/* Botão de Cancelar/Imprimir (Neutro) */
+.button-neutral, .btn-secondary {
+    background: var(--action-neutral);
+    color: var(--text-color);
+    border: 2px solid var(--action-neutral);
+    border-radius: var(--border-radius);
+    padding: 10px 20px;
+    cursor: pointer;
+    transition: all var(--transition-speed);
+    position: relative;
+    overflow: hidden;
+}
+.button-neutral:hover, .btn-secondary:hover {
+    background: #666666;
+    box-shadow: 0 4px 10px rgba(85, 85, 85, 0.5);
+    transform: translateY(-1px);
+}
+
+/* Falling box and toast styles */
+.falling-box { background: var(--accent); color: #222; padding:8px 12px; border-radius:8px; box-shadow:0 8px 24px rgba(0,0,0,0.08) }
+.toast-success { background: rgba(16, 185, 129, 0.1); color: var(--text-color); box-shadow: 0 8px 26px rgba(16, 185, 129, 0.12) }
+
+/* Garantia de contraste para texto */
+.header h1, .header p,
+.card h1, .card h2, .card h3, .card p, .card label,
+.form-group label, .nav-group-title {
+    color: var(--text-color);
+}
+
+/* Form elements com contraste */
+input[type="text"],
+input[type="number"],
+select, textarea {
+    background-color: #444444;
+    color: var(--text-color);
+    border: 1px solid #555555;
+    border-radius: var(--border-radius);
+    padding: 8px 12px;
+}
+input[type="text"]:focus,
+input[type="number"]:focus,
+select:focus, textarea:focus {
+    border-color: var(--primary);
+    box-shadow: 0 0 0 2px rgba(178, 34, 34, 0.2);
+}
+
+/* Cards / Modules for dark theme */
+.card {
+    background-color: var(--card-background);
+    border-radius: var(--border-radius);
+    box-shadow: var(--shadow-subtle);
+    padding: 20px;
+    transition: transform var(--transition-speed), background-color var(--transition-speed);
+}
+.card:hover { 
+    background-color: var(--card-background);
+    transform: translateY(-2px);
+    box-shadow: 0 12px 36px rgba(15, 23, 42, 0.12);
+}
+
+/* Elementos de Formulário (Melhora o contraste) */
+input[type="text"],
+input[type="number"],
+select, textarea {
+    background-color: #444444; /* Fundo do input mais claro que o card */
+    color: var(--text-color);
+    border: 1px solid #555555;
+    border-radius: var(--border-radius);
+    padding: 8px 12px;
+}
+
+/* Cards hover floating effect */
+.stat{ transition: box-shadow 0.3s, transform 0.3s }
+.stat:hover{ box-shadow: var(--shadow-subtle); transform: translateY(-4px) }
+
+/* Responsive tweaks */
+@media (max-width:700px){ .header{ flex-direction:column; align-items:flex-start } .header .header-actions{ width:100%; justify-content:space-between } .form-row{ grid-template-columns:1fr } }
+
+/* small adjustments for forms and index actions */
+.actions{ display:flex; gap:10px; flex-wrap:wrap }
+
+/* DataTables compatibility minor overrides */
+.dataTables_wrapper .dataTables_paginate .paginate_button{ background:transparent; border:0 }
+
+/* end of unified stylesheet */
+
+/* Print modal & print rules for labels */
+.print-modal-content{ max-width:360px; padding:16px }
+.print-area{ width:50mm; height:30mm; margin:0 auto; display:block; background:#fff; padding:6px; border-radius:6px; box-shadow:0 8px 20px rgba(0,0,0,0.06); }
+
+/* When printing, hide all except the print-area so the printer prints only the label at correct size */
+@media print{
+  body *{ visibility: hidden !important }
+  .print-area, .print-area * { visibility: visible !important }
+  .print-area{ position: absolute !important; left: 0; top: 0; margin: 0; }
+}

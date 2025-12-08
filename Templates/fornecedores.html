@@ -1,0 +1,266 @@
+{% extends "base.html" %}
+
+{% block title %}Fornecedores - Tabacaria{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div class="page-title">
+        <h1>Fornecedores</h1>
+        <p>Gerenciamento de fornecedores</p>
+    </div>
+    <button class="btn btn-primary" onclick="abrirModalNovo()">
+        <i class="fas fa-plus"></i> Novo Fornecedor
+    </button>
+</div>
+
+<div class="panel">
+    <div style="margin-bottom: 20px;">
+        <input type="text" id="searchInput" placeholder="Buscar fornecedor..." style="max-width: 400px;" onkeyup="buscarFornecedores()">
+    </div>
+    
+    <table id="tabelaFornecedores">
+        <thead>
+            <tr>
+                <th>Nome Fantasia</th>
+                <th>CNPJ</th>
+                <th>Telefone</th>
+                <th>Cidade</th>
+                <th>Status</th>
+                <th>Ações</th>
+            </tr>
+        </thead>
+        <tbody></tbody>
+    </table>
+</div>
+
+<!-- Modal Fornecedor -->
+<div class="modal" id="modalFornecedor">
+    <div class="modal-content">
+        <h2 id="modalTitle">Novo Fornecedor</h2>
+        <form id="formFornecedor" onsubmit="salvarFornecedor(event)">
+            <input type="hidden" id="id_fornecedor">
+            
+            <div class="form-group">
+                <label>Nome Fantasia*</label>
+                <input type="text" id="nome_fantasia" required>
+            </div>
+            
+            <div class="form-group">
+                <label>Razão Social</label>
+                <input type="text" id="razao_social">
+            </div>
+            
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+                <div class="form-group">
+                    <label>CNPJ</label>
+                    <input type="text" id="cnpj">
+                </div>
+                <div class="form-group">
+                    <label>IE</label>
+                    <input type="text" id="ie">
+                </div>
+            </div>
+            
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+                <div class="form-group">
+                    <label>Telefone</label>
+                    <input type="text" id="telefone">
+                </div>
+                <div class="form-group">
+                    <label>Email</label>
+                    <input type="email" id="email">
+                </div>
+            </div>
+            
+            <div class="form-group">
+                <label>Endereço</label>
+                <input type="text" id="endereco">
+            </div>
+            
+            <div style="display: grid; grid-template-columns: 2fr 1fr 1fr; gap: 16px;">
+                <div class="form-group">
+                    <label>Cidade</label>
+                    <input type="text" id="cidade">
+                </div>
+                <div class="form-group">
+                    <label>Estado</label>
+                    <input type="text" id="estado" maxlength="2">
+                </div>
+                <div class="form-group">
+                    <label>CEP</label>
+                    <input type="text" id="cep">
+                </div>
+            </div>
+            
+            <div class="form-group">
+                <label>Observações</label>
+                <textarea id="observacoes" rows="3"></textarea>
+            </div>
+            
+            <div style="display: flex; gap: 12px; justify-content: flex-end; margin-top: 24px;">
+                <button type="button" class="btn btn-secondary" onclick="fecharModal()">Cancelar</button>
+                <button type="submit" class="btn btn-primary">Salvar</button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+let fornecedores = [];
+
+document.addEventListener('DOMContentLoaded', () => {
+    carregarFornecedores();
+});
+
+async function carregarFornecedores() {
+    try {
+        const response = await fetch('/api/fornecedores');
+        fornecedores = await response.json();
+        renderizarTabela(fornecedores);
+    } catch (error) {
+        console.error('Erro ao carregar fornecedores:', error);
+        alert('Erro ao carregar fornecedores');
+    }
+}
+
+function renderizarTabela(dados) {
+    const tbody = document.querySelector('#tabelaFornecedores tbody');
+    tbody.innerHTML = '';
+    
+    dados.forEach(f => {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+            <td>${f.nome_fantasia}</td>
+            <td>${f.cnpj || '-'}</td>
+            <td>${f.telefone || '-'}</td>
+            <td>${f.cidade || '-'}</td>
+            <td>${f.ativo ? '<span style="color: #10b981;">Ativo</span>' : '<span style="color: #ef4444;">Inativo</span>'}</td>
+            <td>
+                <button class="btn btn-info" onclick="editarFornecedor(${f.id_fornecedor})" style="padding: 6px 12px; font-size: 0.85rem;">
+                    <i class="fas fa-edit"></i>
+                </button>
+                <button class="btn btn-danger" onclick="deletarFornecedor(${f.id_fornecedor})" style="padding: 6px 12px; font-size: 0.85rem;">
+                    <i class="fas fa-trash"></i>
+                </button>
+            </td>
+        `;
+        tbody.appendChild(tr);
+    });
+}
+
+function buscarFornecedores() {
+    const termo = document.getElementById('searchInput').value.toLowerCase();
+    const filtrados = fornecedores.filter(f => 
+        f.nome_fantasia.toLowerCase().includes(termo) ||
+        (f.cnpj && f.cnpj.includes(termo))
+    );
+    renderizarTabela(filtrados);
+}
+
+function abrirModalNovo() {
+    document.getElementById('modalTitle').textContent = 'Novo Fornecedor';
+    document.getElementById('formFornecedor').reset();
+    document.getElementById('id_fornecedor').value = '';
+    document.getElementById('modalFornecedor').classList.add('active');
+}
+
+async function editarFornecedor(id) {
+    try {
+        const response = await fetch(`/api/fornecedores/${id}`);
+        const f = await response.json();
+        
+        document.getElementById('modalTitle').textContent = 'Editar Fornecedor';
+        document.getElementById('id_fornecedor').value = f.id_fornecedor;
+        document.getElementById('nome_fantasia').value = f.nome_fantasia || '';
+        document.getElementById('razao_social').value = f.razao_social || '';
+        document.getElementById('cnpj').value = f.cnpj || '';
+        document.getElementById('ie').value = f.ie || '';
+        document.getElementById('telefone').value = f.telefone || '';
+        document.getElementById('email').value = f.email || '';
+        document.getElementById('endereco').value = f.endereco || '';
+        document.getElementById('cidade').value = f.cidade || '';
+        document.getElementById('estado').value = f.estado || '';
+        document.getElementById('cep').value = f.cep || '';
+        document.getElementById('observacoes').value = f.observacoes || '';
+        
+        document.getElementById('modalFornecedor').classList.add('active');
+    } catch (error) {
+        console.error('Erro ao carregar fornecedor:', error);
+        alert('Erro ao carregar fornecedor');
+    }
+}
+
+async function salvarFornecedor(event) {
+    event.preventDefault();
+    
+    const id = document.getElementById('id_fornecedor').value;
+    const dados = {
+        nome_fantasia: document.getElementById('nome_fantasia').value,
+        razao_social: document.getElementById('razao_social').value,
+        cnpj: document.getElementById('cnpj').value,
+        ie: document.getElementById('ie').value,
+        telefone: document.getElementById('telefone').value,
+        email: document.getElementById('email').value,
+        endereco: document.getElementById('endereco').value,
+        cidade: document.getElementById('cidade').value,
+        estado: document.getElementById('estado').value,
+        cep: document.getElementById('cep').value,
+        observacoes: document.getElementById('observacoes').value,
+        ativo: 1
+    };
+    
+    try {
+        const url = id ? `/api/fornecedores/${id}` : '/api/fornecedores';
+        const method = id ? 'PUT' : 'POST';
+        
+        const response = await fetch(url, {
+            method: method,
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(dados)
+        });
+        
+        const result = await response.json();
+        
+        if (response.ok) {
+            alert(result.mensagem);
+            fecharModal();
+            carregarFornecedores();
+        } else {
+            alert(result.erro || 'Erro ao salvar');
+        }
+    } catch (error) {
+        console.error('Erro ao salvar:', error);
+        alert('Erro ao salvar fornecedor');
+    }
+}
+
+async function deletarFornecedor(id) {
+    if (!confirm('Deseja realmente excluir este fornecedor?')) return;
+    
+    try {
+        const response = await fetch(`/api/fornecedores/${id}`, { method: 'DELETE' });
+        const result = await response.json();
+        
+        if (response.ok) {
+            alert(result.mensagem);
+            carregarFornecedores();
+        } else {
+            alert(result.erro || 'Erro ao excluir');
+        }
+    } catch (error) {
+        console.error('Erro ao excluir:', error);
+        alert('Erro ao excluir fornecedor');
+    }
+}
+
+function fecharModal() {
+    document.getElementById('modalFornecedor').classList.remove('active');
+}
+
+document.getElementById('modalFornecedor').addEventListener('click', (e) => {
+    if (e.target.id === 'modalFornecedor') fecharModal();
+});
+</script>
+{% endblock %}

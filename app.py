@@ -492,6 +492,67 @@ def atualizar_produto(id_produto):
     return jsonify({"mensagem": "Produto atualizado com sucesso."})
 
 
+@app.route('/api/produtos/<int:id_produto>/detalhes', methods=['GET'])
+def detalhes_produto(id_produto):
+    """Retorna informações detalhadas do produto incluindo histórico de movimentações"""
+    try:
+        conn = get_db()
+        cur = conn.cursor()
+        
+        # Buscar dados do produto
+        cur.execute("SELECT * FROM produtos WHERE id_produto=?", (id_produto,))
+        produto = cur.fetchone()
+        
+        if not produto:
+            conn.close()
+            return jsonify({"erro": "Produto não encontrado."}), 404
+        
+        produto_dict = dict(produto)
+        
+        # Buscar histórico de movimentações
+        cur.execute("""
+            SELECT tipo, quantidade, observacao, data_mov 
+            FROM movimentacoes 
+            WHERE id_produto=? 
+            ORDER BY data_mov DESC 
+            LIMIT 50
+        """, (id_produto,))
+        movimentacoes = [dict(row) for row in cur.fetchall()]
+        
+        # Calcular estatísticas
+        cur.execute("""
+            SELECT 
+                COALESCE(SUM(CASE WHEN tipo='entrada' THEN quantidade ELSE 0 END), 0) as total_entradas,
+                COALESCE(SUM(CASE WHEN tipo='saida' THEN quantidade ELSE 0 END), 0) as total_saidas,
+                COUNT(*) as total_movimentacoes
+            FROM movimentacoes 
+            WHERE id_produto=?
+        """, (id_produto,))
+        stats = dict(cur.fetchone())
+        
+        # Buscar vendas relacionadas
+        cur.execute("""
+            SELECT COUNT(*) as total_vendas, 
+                   COALESCE(SUM(quantidade), 0) as quantidade_vendida,
+                   COALESCE(SUM(quantidade * preco_unitario), 0) as valor_total_vendido
+            FROM venda_items 
+            WHERE id_produto=?
+        """, (id_produto,))
+        vendas_stats = dict(cur.fetchone())
+        
+        conn.close()
+        
+        return jsonify({
+            "produto": produto_dict,
+            "movimentacoes": movimentacoes,
+            "estatisticas": stats,
+            "vendas": vendas_stats
+        })
+        
+    except Exception as e:
+        return jsonify({"erro": f"Erro ao buscar detalhes: {str(e)}"}), 500
+
+
 @app.route('/api/produtos/<int:id_produto>', methods=['DELETE'])
 def deletar_produto(id_produto):
     conn = get_db()
@@ -1028,6 +1089,943 @@ def deletar_movimentacao(id_mov):
     conn.commit()
     conn.close()
     return jsonify({'mensagem': 'Movimentação removida.'})
+
+
+# ============================================
+# MÓDULO ERP: FORNECEDORES
+# ============================================
+
+@app.route('/fornecedores')
+def fornecedores_page():
+    return render_template('fornecedores.html')
+
+@app.route('/api/fornecedores', methods=['GET'])
+def listar_fornecedores():
+    conn = get_db()
+    q = request.args.get('q', '').strip()
+    ativo = request.args.get('ativo')
+    
+    query = "SELECT * FROM fornecedores WHERE 1=1"
+    params = []
+    
+    if q:
+        query += " AND (nome_fantasia LIKE ? OR razao_social LIKE ? OR cnpj LIKE ?)"
+        params.extend([f'%{q}%', f'%{q}%', f'%{q}%'])
+    
+    if ativo is not None:
+        query += " AND ativo = ?"
+        params.append(int(ativo))
+    
+    query += " ORDER BY nome_fantasia"
+    
+    cur = conn.execute(query, params)
+    fornecedores = [dict(row) for row in cur.fetchall()]
+    conn.close()
+    return jsonify(fornecedores)
+
+@app.route('/api/fornecedores', methods=['POST'])
+def criar_fornecedor():
+    data = request.json or {}
+    
+    nome_fantasia = data.get('nome_fantasia', '').strip()
+    razao_social = data.get('razao_social', '').strip()
+    cnpj = data.get('cnpj', '').strip()
+    
+    if not nome_fantasia:
+        return jsonify({'erro': 'Nome fantasia é obrigatório'}), 400
+    
+    conn = get_db()
+    try:
+        cur = conn.execute("""
+            INSERT INTO fornecedores (
+                nome_fantasia, razao_social, cnpj, ie, contato, telefone, email, site,
+                endereco, cidade, estado, cep, banco, agencia, conta, observacoes, ativo
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """, (
+            nome_fantasia, razao_social, cnpj, data.get('ie'), data.get('contato'),
+            data.get('telefone'), data.get('email'), data.get('site'), data.get('endereco'),
+            data.get('cidade'), data.get('estado'), data.get('cep'), data.get('banco'),
+            data.get('agencia'), data.get('conta'), data.get('observacoes'), 
+            data.get('ativo', 1)
+        ))
+        conn.commit()
+        fornecedor_id = cur.lastrowid
+        log_event('fornecedor_criado', 'sistema', detalhe=f'Fornecedor {nome_fantasia} criado')
+        conn.close()
+        return jsonify({'mensagem': 'Fornecedor criado', 'id_fornecedor': fornecedor_id}), 201
+    except sqlite3.IntegrityError:
+        conn.close()
+        return jsonify({'erro': 'CNPJ já cadastrado'}), 400
+    except Exception as e:
+        conn.close()
+        return jsonify({'erro': str(e)}), 500
+
+@app.route('/api/fornecedores/<int:id_fornecedor>', methods=['GET'])
+def obter_fornecedor(id_fornecedor):
+    conn = get_db()
+    cur = conn.execute("SELECT * FROM fornecedores WHERE id_fornecedor=?", (id_fornecedor,))
+    fornecedor = cur.fetchone()
+    conn.close()
+    
+    if not fornecedor:
+        return jsonify({'erro': 'Fornecedor não encontrado'}), 404
+    
+    return jsonify(dict(fornecedor))
+
+@app.route('/api/fornecedores/<int:id_fornecedor>', methods=['PUT'])
+def atualizar_fornecedor(id_fornecedor):
+    data = request.json or {}
+    conn = get_db()
+    
+    cur = conn.execute("SELECT id_fornecedor FROM fornecedores WHERE id_fornecedor=?", (id_fornecedor,))
+    if not cur.fetchone():
+        conn.close()
+        return jsonify({'erro': 'Fornecedor não encontrado'}), 404
+    
+    try:
+        conn.execute("""
+            UPDATE fornecedores SET
+                nome_fantasia=?, razao_social=?, cnpj=?, ie=?, contato=?, telefone=?,
+                email=?, site=?, endereco=?, cidade=?, estado=?, cep=?, banco=?, 
+                agencia=?, conta=?, observacoes=?, ativo=?, atualizado_em=datetime('now')
+            WHERE id_fornecedor=?
+        """, (
+            data.get('nome_fantasia'), data.get('razao_social'), data.get('cnpj'),
+            data.get('ie'), data.get('contato'), data.get('telefone'), data.get('email'),
+            data.get('site'), data.get('endereco'), data.get('cidade'), data.get('estado'),
+            data.get('cep'), data.get('banco'), data.get('agencia'), data.get('conta'),
+            data.get('observacoes'), data.get('ativo', 1), id_fornecedor
+        ))
+        conn.commit()
+        conn.close()
+        return jsonify({'mensagem': 'Fornecedor atualizado'})
+    except Exception as e:
+        conn.close()
+        return jsonify({'erro': str(e)}), 500
+
+@app.route('/api/fornecedores/<int:id_fornecedor>', methods=['DELETE'])
+def deletar_fornecedor(id_fornecedor):
+    conn = get_db()
+    cur = conn.execute("SELECT id_fornecedor FROM fornecedores WHERE id_fornecedor=?", (id_fornecedor,))
+    if not cur.fetchone():
+        conn.close()
+        return jsonify({'erro': 'Fornecedor não encontrado'}), 404
+    
+    try:
+        conn.execute("DELETE FROM fornecedores WHERE id_fornecedor=?", (id_fornecedor,))
+        conn.commit()
+        conn.close()
+        return jsonify({'mensagem': 'Fornecedor removido'})
+    except sqlite3.IntegrityError:
+        conn.close()
+        return jsonify({'erro': 'Fornecedor possui registros vinculados'}), 400
+
+
+# ============================================
+# MÓDULO ERP: COMPRAS
+# ============================================
+
+@app.route('/compras')
+def compras_page():
+    return render_template('compras.html')
+
+@app.route('/api/compras', methods=['GET'])
+def listar_compras():
+    conn = get_db()
+    status = request.args.get('status')
+    fornecedor_id = request.args.get('fornecedor_id')
+    
+    query = """
+        SELECT c.*, f.nome_fantasia as fornecedor_nome
+        FROM compras c
+        LEFT JOIN fornecedores f ON f.id_fornecedor = c.id_fornecedor
+        WHERE 1=1
+    """
+    params = []
+    
+    if status:
+        query += " AND c.status = ?"
+        params.append(status)
+    
+    if fornecedor_id:
+        query += " AND c.id_fornecedor = ?"
+        params.append(int(fornecedor_id))
+    
+    query += " ORDER BY c.data_compra DESC"
+    
+    cur = conn.execute(query, params)
+    compras = [dict(row) for row in cur.fetchall()]
+    conn.close()
+    return jsonify(compras)
+
+@app.route('/api/compras', methods=['POST'])
+def criar_compra():
+    data = request.json or {}
+    
+    id_fornecedor = data.get('id_fornecedor')
+    if not id_fornecedor:
+        return jsonify({'erro': 'Fornecedor é obrigatório'}), 400
+    
+    conn = get_db()
+    try:
+        cur = conn.execute("""
+            INSERT INTO compras (
+                id_fornecedor, numero_pedido, data_compra, data_entrega_prevista,
+                status, observacao
+            ) VALUES (?, ?, ?, ?, ?, ?)
+        """, (
+            id_fornecedor, data.get('numero_pedido'), 
+            data.get('data_compra', 'now'), data.get('data_entrega_prevista'),
+            'pendente', data.get('observacao')
+        ))
+        compra_id = cur.lastrowid
+        
+        # Adicionar itens da compra
+        items = data.get('items', [])
+        valor_total = 0
+        
+        for item in items:
+            subtotal = item['quantidade'] * item['preco_unitario'] - item.get('desconto_item', 0)
+            valor_total += subtotal
+            
+            conn.execute("""
+                INSERT INTO compra_items (id_compra, id_produto, quantidade, preco_unitario, desconto_item, subtotal)
+                VALUES (?, ?, ?, ?, ?, ?)
+            """, (
+                compra_id, item['id_produto'], item['quantidade'], 
+                item['preco_unitario'], item.get('desconto_item', 0), subtotal
+            ))
+        
+        # Atualizar valor total da compra
+        desconto = data.get('desconto', 0)
+        frete = data.get('valor_frete', 0)
+        valor_final = valor_total - desconto + frete
+        
+        conn.execute("""
+            UPDATE compras SET valor_total=?, desconto=?, valor_frete=?, valor_final=?
+            WHERE id_compra=?
+        """, (valor_total, desconto, frete, valor_final, compra_id))
+        
+        conn.commit()
+        log_event('compra_criada', 'sistema', valor=valor_final, detalhe=f'Compra #{compra_id}')
+        conn.close()
+        
+        return jsonify({'mensagem': 'Compra criada', 'id_compra': compra_id}), 201
+    except Exception as e:
+        conn.rollback()
+        conn.close()
+        return jsonify({'erro': str(e)}), 500
+
+@app.route('/api/compras/<int:id_compra>/receber', methods=['POST'])
+def receber_compra(id_compra):
+    """Receber itens da compra e atualizar estoque"""
+    data = request.json or {}
+    conn = get_db()
+    
+    try:
+        # Verificar compra
+        cur = conn.execute("SELECT * FROM compras WHERE id_compra=?", (id_compra,))
+        compra = cur.fetchone()
+        if not compra:
+            conn.close()
+            return jsonify({'erro': 'Compra não encontrada'}), 404
+        
+        # Receber itens
+        items_recebidos = data.get('items', [])
+        
+        for item in items_recebidos:
+            id_item = item['id_item']
+            qtd_recebida = item['quantidade_recebida']
+            
+            # Atualizar item da compra
+            conn.execute("""
+                UPDATE compra_items SET recebido = recebido + ?
+                WHERE id_item=?
+            """, (qtd_recebida, id_item))
+            
+            # Atualizar estoque
+            cur.execute("SELECT id_produto FROM compra_items WHERE id_item=?", (id_item,))
+            id_produto = cur.fetchone()['id_produto']
+            
+            conn.execute("""
+                UPDATE produtos SET quantidade = quantidade + ?
+                WHERE id_produto=?
+            """, (qtd_recebida, id_produto))
+            
+            # Registrar movimentação
+            conn.execute("""
+                INSERT INTO movimentacoes (id_produto, tipo, quantidade, observacao)
+                VALUES (?, 'entrada', ?, ?)
+            """, (id_produto, qtd_recebida, f'Recebimento compra #{id_compra}'))
+        
+        # Atualizar status da compra
+        conn.execute("UPDATE compras SET data_entrega_real=datetime('now') WHERE id_compra=?", (id_compra,))
+        
+        # Verificar se todos itens foram recebidos
+        cur.execute("""
+            SELECT COUNT(*) as total,
+                   SUM(CASE WHEN recebido >= quantidade THEN 1 ELSE 0 END) as completos
+            FROM compra_items WHERE id_compra=?
+        """, (id_compra,))
+        status_check = cur.fetchone()
+        
+        if status_check['total'] == status_check['completos']:
+            conn.execute("UPDATE compras SET status='concluida' WHERE id_compra=?", (id_compra,))
+        else:
+            conn.execute("UPDATE compras SET status='parcial' WHERE id_compra=?", (id_compra,))
+        
+        conn.commit()
+        conn.close()
+        
+        return jsonify({'mensagem': 'Itens recebidos com sucesso'})
+    except Exception as e:
+        conn.rollback()
+        conn.close()
+        return jsonify({'erro': str(e)}), 500
+
+
+# ============================================
+# MÓDULO ERP: CONTAS A PAGAR
+# ============================================
+
+@app.route('/contas_pagar')
+def contas_pagar_page():
+    return render_template('contas_pagar.html')
+
+@app.route('/api/contas_pagar', methods=['GET'])
+def listar_contas_pagar():
+    conn = get_db()
+    status = request.args.get('status')
+    vencidas = request.args.get('vencidas')
+    
+    query = """
+        SELECT cp.*, f.nome_fantasia as fornecedor_nome, cat.nome as categoria_nome
+        FROM contas_pagar cp
+        LEFT JOIN fornecedores f ON f.id_fornecedor = cp.id_fornecedor
+        LEFT JOIN categorias_financeiras cat ON cat.id_categoria = cp.id_categoria
+        WHERE 1=1
+    """
+    params = []
+    
+    if status:
+        query += " AND cp.status = ?"
+        params.append(status)
+    
+    if vencidas == '1':
+        query += " AND cp.status = 'pendente' AND cp.data_vencimento < datetime('now')"
+    
+    query += " ORDER BY cp.data_vencimento ASC"
+    
+    cur = conn.execute(query, params)
+    contas = [dict(row) for row in cur.fetchall()]
+    conn.close()
+    return jsonify(contas)
+
+@app.route('/api/contas_pagar', methods=['POST'])
+def criar_conta_pagar():
+    data = request.json or {}
+    conn = get_db()
+    
+    try:
+        cur = conn.execute("""
+            INSERT INTO contas_pagar (
+                id_fornecedor, id_compra, id_categoria, descricao, valor,
+                data_vencimento, status, forma_pagamento, numero_documento, observacao
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """, (
+            data.get('id_fornecedor'), data.get('id_compra'), data.get('id_categoria'),
+            data['descricao'], data['valor'], data['data_vencimento'],
+            'pendente', data.get('forma_pagamento'), data.get('numero_documento'),
+            data.get('observacao')
+        ))
+        conta_id = cur.lastrowid
+        conn.commit()
+        conn.close()
+        
+        return jsonify({'mensagem': 'Conta a pagar criada', 'id_conta': conta_id}), 201
+    except Exception as e:
+        conn.close()
+        return jsonify({'erro': str(e)}), 500
+
+@app.route('/api/contas_pagar/<int:id_conta>/pagar', methods=['POST'])
+def pagar_conta(id_conta):
+    data = request.json or {}
+    conn = get_db()
+    
+    try:
+        # Buscar conta
+        cur = conn.execute("SELECT * FROM contas_pagar WHERE id_conta=?", (id_conta,))
+        conta = cur.fetchone()
+        if not conta:
+            conn.close()
+            return jsonify({'erro': 'Conta não encontrada'}), 404
+        
+        # Atualizar conta
+        conn.execute("""
+            UPDATE contas_pagar SET
+                status='pago',
+                data_pagamento=datetime('now'),
+                forma_pagamento=?,
+                observacao=?
+            WHERE id_conta=?
+        """, (data.get('forma_pagamento'), data.get('observacao'), id_conta))
+        
+        # Registrar no fluxo de caixa
+        conn.execute("""
+            INSERT INTO fluxo_caixa (tipo, id_categoria, descricao, valor, forma_pagamento, id_conta_pagar)
+            VALUES ('saida', ?, ?, ?, ?, ?)
+        """, (conta['id_categoria'], conta['descricao'], conta['valor'], 
+              data.get('forma_pagamento'), id_conta))
+        
+        conn.commit()
+        log_event('conta_paga', 'sistema', valor=conta['valor'], detalhe=f'Conta #{id_conta} paga')
+        conn.close()
+        
+        return jsonify({'mensagem': 'Conta paga com sucesso'})
+    except Exception as e:
+        conn.rollback()
+        conn.close()
+        return jsonify({'erro': str(e)}), 500
+
+
+# ============================================
+# MÓDULO ERP: CONTAS A RECEBER
+# ============================================
+
+@app.route('/contas_receber')
+def contas_receber_page():
+    return render_template('contas_receber.html')
+
+@app.route('/api/contas_receber', methods=['GET'])
+def listar_contas_receber():
+    conn = get_db()
+    status = request.args.get('status')
+    vencidas = request.args.get('vencidas')
+    
+    query = """
+        SELECT cr.*, c.nome as cliente_nome, cat.nome as categoria_nome
+        FROM contas_receber cr
+        LEFT JOIN clientes c ON c.id_cliente = cr.id_cliente
+        LEFT JOIN categorias_financeiras cat ON cat.id_categoria = cr.id_categoria
+        WHERE 1=1
+    """
+    params = []
+    
+    if status:
+        query += " AND cr.status = ?"
+        params.append(status)
+    
+    if vencidas == '1':
+        query += " AND cr.status = 'pendente' AND cr.data_vencimento < datetime('now')"
+    
+    query += " ORDER BY cr.data_vencimento ASC"
+    
+    cur = conn.execute(query, params)
+    contas = [dict(row) for row in cur.fetchall()]
+    conn.close()
+    return jsonify(contas)
+
+@app.route('/api/contas_receber', methods=['POST'])
+def criar_conta_receber():
+    data = request.json or {}
+    conn = get_db()
+    
+    try:
+        cur = conn.execute("""
+            INSERT INTO contas_receber (
+                id_cliente, id_venda, id_categoria, descricao, valor,
+                data_vencimento, status, forma_recebimento, numero_documento, observacao
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """, (
+            data.get('id_cliente'), data.get('id_venda'), data.get('id_categoria'),
+            data['descricao'], data['valor'], data['data_vencimento'],
+            'pendente', data.get('forma_recebimento'), data.get('numero_documento'),
+            data.get('observacao')
+        ))
+        conta_id = cur.lastrowid
+        conn.commit()
+        conn.close()
+        
+        return jsonify({'mensagem': 'Conta a receber criada', 'id_conta': conta_id}), 201
+    except Exception as e:
+        conn.close()
+        return jsonify({'erro': str(e)}), 500
+
+@app.route('/api/contas_receber/<int:id_conta>/receber', methods=['POST'])
+def receber_conta(id_conta):
+    data = request.json or {}
+    conn = get_db()
+    
+    try:
+        # Buscar conta
+        cur = conn.execute("SELECT * FROM contas_receber WHERE id_conta=?", (id_conta,))
+        conta = cur.fetchone()
+        if not conta:
+            conn.close()
+            return jsonify({'erro': 'Conta não encontrada'}), 404
+        
+        # Atualizar conta
+        conn.execute("""
+            UPDATE contas_receber SET
+                status='recebido',
+                data_recebimento=datetime('now'),
+                forma_recebimento=?,
+                observacao=?
+            WHERE id_conta=?
+        """, (data.get('forma_recebimento'), data.get('observacao'), id_conta))
+        
+        # Registrar no fluxo de caixa
+        conn.execute("""
+            INSERT INTO fluxo_caixa (tipo, id_categoria, descricao, valor, forma_pagamento, id_conta_receber)
+            VALUES ('entrada', ?, ?, ?, ?, ?)
+        """, (conta['id_categoria'], conta['descricao'], conta['valor'], 
+              data.get('forma_recebimento'), id_conta))
+        
+        conn.commit()
+        log_event('conta_recebida', 'sistema', valor=conta['valor'], detalhe=f'Conta #{id_conta} recebida')
+        conn.close()
+        
+        return jsonify({'mensagem': 'Conta recebida com sucesso'})
+    except Exception as e:
+        conn.rollback()
+        conn.close()
+        return jsonify({'erro': str(e)}), 500
+
+
+# ============================================
+# MÓDULO ERP: FLUXO DE CAIXA
+# ============================================
+
+@app.route('/fluxo_caixa')
+def fluxo_caixa_page():
+    return render_template('fluxo_caixa.html')
+
+@app.route('/api/fluxo_caixa', methods=['GET'])
+def listar_fluxo_caixa():
+    conn = get_db()
+    data_inicio = request.args.get('data_inicio')
+    data_fim = request.args.get('data_fim')
+    tipo = request.args.get('tipo')
+    
+    query = """
+        SELECT fc.*, cat.nome as categoria_nome
+        FROM fluxo_caixa fc
+        LEFT JOIN categorias_financeiras cat ON cat.id_categoria = fc.id_categoria
+        WHERE 1=1
+    """
+    params = []
+    
+    if data_inicio:
+        query += " AND DATE(fc.data_movimentacao) >= ?"
+        params.append(data_inicio)
+    
+    if data_fim:
+        query += " AND DATE(fc.data_movimentacao) <= ?"
+        params.append(data_fim)
+    
+    if tipo:
+        query += " AND fc.tipo = ?"
+        params.append(tipo)
+    
+    query += " ORDER BY fc.data_movimentacao DESC"
+    
+    cur = conn.execute(query, params)
+    registros = [dict(row) for row in cur.fetchall()]
+    conn.close()
+    return jsonify(registros)
+
+@app.route('/api/fluxo_caixa/resumo', methods=['GET'])
+def resumo_fluxo_caixa():
+    conn = get_db()
+    data_inicio = request.args.get('data_inicio')
+    data_fim = request.args.get('data_fim')
+    
+    query = """
+        SELECT 
+            SUM(CASE WHEN tipo='entrada' THEN valor ELSE 0 END) as total_entradas,
+            SUM(CASE WHEN tipo='saida' THEN valor ELSE 0 END) as total_saidas,
+            SUM(CASE WHEN tipo='entrada' THEN valor ELSE -valor END) as saldo
+        FROM fluxo_caixa
+        WHERE 1=1
+    """
+    params = []
+    
+    if data_inicio:
+        query += " AND DATE(data_movimentacao) >= ?"
+        params.append(data_inicio)
+    
+    if data_fim:
+        query += " AND DATE(data_movimentacao) <= ?"
+        params.append(data_fim)
+    
+    cur = conn.execute(query, params)
+    resumo = dict(cur.fetchone())
+    conn.close()
+    
+    return jsonify(resumo)
+
+
+# ============================================
+# MÓDULO ERP: CATEGORIAS FINANCEIRAS
+# ============================================
+
+@app.route('/api/categorias_financeiras', methods=['GET'])
+def listar_categorias_financeiras():
+    conn = get_db()
+    tipo = request.args.get('tipo')
+    
+    query = "SELECT * FROM categorias_financeiras WHERE ativo=1"
+    params = []
+    
+    if tipo:
+        query += " AND tipo=?"
+        params.append(tipo)
+    
+    query += " ORDER BY nome"
+    
+    cur = conn.execute(query, params)
+    categorias = [dict(row) for row in cur.fetchall()]
+    conn.close()
+    return jsonify(categorias)
+
+
+# ============================================
+# MÓDULO ERP: DASHBOARD FINANCEIRO
+# ============================================
+
+@app.route('/dashboard_financeiro')
+def dashboard_financeiro():
+    return render_template('dashboard_financeiro.html')
+
+@app.route('/api/dashboard/kpis', methods=['GET'])
+def dashboard_kpis():
+    """Retorna indicadores financeiros para o dashboard"""
+    conn = get_db()
+    
+    # Contas a pagar pendentes
+    cur = conn.execute("""
+        SELECT COUNT(*) as total, COALESCE(SUM(valor), 0) as valor_total
+        FROM contas_pagar WHERE status='pendente'
+    """)
+    contas_pagar = dict(cur.fetchone())
+    
+    # Contas a receber pendentes
+    cur = conn.execute("""
+        SELECT COUNT(*) as total, COALESCE(SUM(valor), 0) as valor_total
+        FROM contas_receber WHERE status='pendente'
+    """)
+    contas_receber = dict(cur.fetchone())
+    
+    # Contas vencidas a pagar
+    cur = conn.execute("""
+        SELECT COUNT(*) as total, COALESCE(SUM(valor), 0) as valor_total
+        FROM contas_pagar 
+        WHERE status='pendente' AND data_vencimento < datetime('now')
+    """)
+    vencidas_pagar = dict(cur.fetchone())
+    
+    # Contas vencidas a receber
+    cur = conn.execute("""
+        SELECT COUNT(*) as total, COALESCE(SUM(valor), 0) as valor_total
+        FROM contas_receber 
+        WHERE status='pendente' AND data_vencimento < datetime('now')
+    """)
+    vencidas_receber = dict(cur.fetchone())
+    
+    # Fluxo de caixa do mês
+    cur = conn.execute("""
+        SELECT 
+            SUM(CASE WHEN tipo='entrada' THEN valor ELSE 0 END) as entradas,
+            SUM(CASE WHEN tipo='saida' THEN valor ELSE 0 END) as saidas
+        FROM fluxo_caixa
+        WHERE strftime('%Y-%m', data_movimentacao) = strftime('%Y-%m', 'now')
+    """)
+    fluxo_mes = dict(cur.fetchone())
+    
+    # Valor em estoque
+    cur = conn.execute("""
+        SELECT COALESCE(SUM(quantidade * preco), 0) as valor_estoque
+        FROM produtos
+    """)
+    valor_estoque = cur.fetchone()['valor_estoque']
+    
+    # Produtos com estoque baixo (menos de 10)
+    cur = conn.execute("""
+        SELECT COUNT(*) as total FROM produtos WHERE quantidade < 10
+    """)
+    produtos_baixo_estoque = cur.fetchone()['total']
+    
+    conn.close()
+    
+    return jsonify({
+        'contas_pagar': contas_pagar,
+        'contas_receber': contas_receber,
+        'vencidas_pagar': vencidas_pagar,
+        'vencidas_receber': vencidas_receber,
+        'fluxo_mes': fluxo_mes,
+        'valor_estoque': valor_estoque,
+        'produtos_baixo_estoque': produtos_baixo_estoque
+    })
+
+
+# ============================================
+# MÓDULO ERP: INVENTÁRIO
+# ============================================
+
+@app.route('/inventario')
+def inventario_page():
+    return render_template('inventario.html')
+
+@app.route('/api/inventarios', methods=['GET'])
+def listar_inventarios():
+    conn = get_db()
+    cur = conn.execute("SELECT * FROM inventarios ORDER BY data_inicio DESC")
+    inventarios = [dict(row) for row in cur.fetchall()]
+    conn.close()
+    return jsonify(inventarios)
+
+@app.route('/api/inventarios', methods=['POST'])
+def criar_inventario():
+    data = request.json or {}
+    conn = get_db()
+    
+    try:
+        cur = conn.execute("""
+            INSERT INTO inventarios (responsavel, observacao, status)
+            VALUES (?, ?, 'em_andamento')
+        """, (data.get('responsavel'), data.get('observacao')))
+        
+        inventario_id = cur.lastrowid
+        
+        # Criar items baseado no estoque atual
+        conn.execute("""
+            INSERT INTO inventario_items (id_inventario, id_produto, quantidade_sistema)
+            SELECT ?, id_produto, quantidade FROM produtos
+        """, (inventario_id,))
+        
+        conn.commit()
+        conn.close()
+        
+        return jsonify({'mensagem': 'Inventário criado', 'id_inventario': inventario_id}), 201
+    except Exception as e:
+        conn.close()
+        return jsonify({'erro': str(e)}), 500
+
+@app.route('/api/inventarios/<int:id_inventario>/items', methods=['GET'])
+def listar_items_inventario(id_inventario):
+    conn = get_db()
+    cur = conn.execute("""
+        SELECT ii.*, p.nome as produto_nome, p.codigo_barras
+        FROM inventario_items ii
+        JOIN produtos p ON p.id_produto = ii.id_produto
+        WHERE ii.id_inventario=?
+        ORDER BY p.nome
+    """, (id_inventario,))
+    items = [dict(row) for row in cur.fetchall()]
+    conn.close()
+    return jsonify(items)
+
+@app.route('/api/inventarios/<int:id_inventario>/items/<int:id_item>', methods=['PUT'])
+def atualizar_item_inventario(id_inventario, id_item):
+    data = request.json or {}
+    conn = get_db()
+    
+    try:
+        qtd_contada = data.get('quantidade_contada')
+        
+        # Buscar quantidade do sistema
+        cur = conn.execute("""
+            SELECT quantidade_sistema FROM inventario_items WHERE id_item=?
+        """, (id_item,))
+        item = cur.fetchone()
+        
+        diferenca = qtd_contada - item['quantidade_sistema']
+        
+        conn.execute("""
+            UPDATE inventario_items 
+            SET quantidade_contada=?, diferenca=?, observacao=?
+            WHERE id_item=?
+        """, (qtd_contada, diferenca, data.get('observacao'), id_item))
+        
+        conn.commit()
+        conn.close()
+        
+        return jsonify({'mensagem': 'Item atualizado', 'diferenca': diferenca})
+    except Exception as e:
+        conn.close()
+        return jsonify({'erro': str(e)}), 500
+
+@app.route('/api/inventarios/<int:id_inventario>/finalizar', methods=['POST'])
+def finalizar_inventario(id_inventario):
+    """Finaliza inventário e ajusta estoque com base nas diferenças"""
+    conn = get_db()
+    
+    try:
+        # Buscar items com diferença
+        cur = conn.execute("""
+            SELECT * FROM inventario_items 
+            WHERE id_inventario=? AND diferenca IS NOT NULL AND diferenca != 0
+        """, (id_inventario,))
+        
+        items_com_diferenca = cur.fetchall()
+        
+        for item in items_com_diferenca:
+            id_produto = item['id_produto']
+            diferenca = item['diferenca']
+            
+            # Atualizar estoque
+            conn.execute("""
+                UPDATE produtos SET quantidade = quantidade + ?
+                WHERE id_produto=?
+            """, (diferenca, id_produto))
+            
+            # Registrar ajuste
+            conn.execute("""
+                INSERT INTO ajustes_estoque (
+                    id_produto, tipo_ajuste, quantidade, motivo, id_inventario
+                ) VALUES (?, 'ajuste_inventario', ?, ?, ?)
+            """, (id_produto, diferenca, f'Ajuste inventário #{id_inventario}', id_inventario))
+        
+        # Finalizar inventário
+        conn.execute("""
+            UPDATE inventarios 
+            SET status='concluido', data_fim=datetime('now')
+            WHERE id_inventario=?
+        """, (id_inventario,))
+        
+        conn.commit()
+        log_event('inventario_finalizado', 'sistema', detalhe=f'Inventário #{id_inventario} com {len(items_com_diferenca)} ajustes')
+        conn.close()
+        
+        return jsonify({
+            'mensagem': 'Inventário finalizado',
+            'ajustes_realizados': len(items_com_diferenca)
+        })
+    except Exception as e:
+        conn.rollback()
+        conn.close()
+        return jsonify({'erro': str(e)}), 500
+
+
+# ============================================
+# MÓDULO ERP: RELATÓRIOS
+# ============================================
+
+@app.route('/relatorios')
+def relatorios_page():
+    return render_template('relatorios.html')
+
+@app.route('/api/relatorios/curva_abc', methods=['GET'])
+def relatorio_curva_abc():
+    """Análise ABC de produtos por valor de estoque"""
+    conn = get_db()
+    cur = conn.execute("""
+        SELECT 
+            id_produto, nome, categoria, quantidade, preco,
+            (quantidade * preco) as valor_estoque
+        FROM produtos
+        WHERE quantidade > 0
+        ORDER BY valor_estoque DESC
+    """)
+    
+    produtos = [dict(row) for row in cur.fetchall()]
+    conn.close()
+    
+    if not produtos:
+        return jsonify([])
+    
+    # Calcular valor total
+    valor_total = sum(p['valor_estoque'] for p in produtos)
+    
+    # Calcular percentuais acumulados e classificar
+    acumulado = 0
+    for produto in produtos:
+        percentual = (produto['valor_estoque'] / valor_total) * 100 if valor_total > 0 else 0
+        acumulado += percentual
+        produto['percentual'] = round(percentual, 2)
+        produto['acumulado'] = round(acumulado, 2)
+        
+        # Classificação ABC
+        if acumulado <= 80:
+            produto['classe'] = 'A'
+        elif acumulado <= 95:
+            produto['classe'] = 'B'
+        else:
+            produto['classe'] = 'C'
+    
+    return jsonify(produtos)
+
+@app.route('/api/relatorios/lucratividade', methods=['GET'])
+def relatorio_lucratividade():
+    """Análise de lucratividade por produto"""
+    conn = get_db()
+    data_inicio = request.args.get('data_inicio')
+    data_fim = request.args.get('data_fim')
+    
+    query = """
+        SELECT 
+            p.id_produto, p.nome, p.categoria, p.preco as preco_atual,
+            COUNT(vi.id_item) as total_vendas,
+            SUM(vi.quantidade) as quantidade_vendida,
+            AVG(vi.preco_unitario) as preco_medio_venda,
+            SUM(vi.quantidade * vi.preco_unitario) as receita_total
+        FROM produtos p
+        LEFT JOIN venda_items vi ON vi.id_produto = p.id_produto
+        LEFT JOIN vendas v ON v.id_venda = vi.id_venda
+        WHERE 1=1
+    """
+    params = []
+    
+    if data_inicio:
+        query += " AND DATE(v.data_venda) >= ?"
+        params.append(data_inicio)
+    
+    if data_fim:
+        query += " AND DATE(v.data_venda) <= ?"
+        params.append(data_fim)
+    
+    query += " GROUP BY p.id_produto ORDER BY receita_total DESC"
+    
+    cur = conn.execute(query, params)
+    produtos = [dict(row) for row in cur.fetchall()]
+    conn.close()
+    
+    return jsonify(produtos)
+
+@app.route('/api/relatorios/estoque_valorizado', methods=['GET'])
+def relatorio_estoque_valorizado():
+    """Relatório de estoque com valor total por categoria"""
+    conn = get_db()
+    cur = conn.execute("""
+        SELECT 
+            categoria,
+            COUNT(*) as total_produtos,
+            SUM(quantidade) as quantidade_total,
+            SUM(quantidade * preco) as valor_total,
+            AVG(preco) as preco_medio
+        FROM produtos
+        GROUP BY categoria
+        ORDER BY valor_total DESC
+    """)
+    
+    categorias = [dict(row) for row in cur.fetchall()]
+    
+    # Total geral
+    cur.execute("""
+        SELECT 
+            COUNT(*) as total_produtos,
+            SUM(quantidade) as quantidade_total,
+            SUM(quantidade * preco) as valor_total
+        FROM produtos
+    """)
+    total = dict(cur.fetchone())
+    
+    conn.close()
+    
+    return jsonify({
+        'por_categoria': categorias,
+        'total_geral': total
+    })
 
 # Tratamento de erros HTTP
 

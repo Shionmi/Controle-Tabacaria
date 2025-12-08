@@ -1,0 +1,150 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard Financeiro - Tabacaria{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div class="page-title">
+        <h1>Dashboard Financeiro</h1>
+        <p>Visão geral das finanças e indicadores</p>
+    </div>
+</div>
+
+<!-- KPIs Cards -->
+<div class="dash-grid" style="grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));">
+    <div class="dash-card" style="background: linear-gradient(145deg, #1e293b, #0f172a);">
+        <div class="icon" style="background: rgba(239, 68, 68, 0.1); color: #ef4444;">
+            <i class="fas fa-money-bill-wave"></i>
+        </div>
+        <div>
+            <h3>Contas a Pagar</h3>
+            <p id="kpi-contas-pagar">R$ 0,00</p>
+            <small id="kpi-contas-pagar-qtd" style="color: var(--text-muted);">0 pendentes</small>
+        </div>
+    </div>
+
+    <div class="dash-card" style="background: linear-gradient(145deg, #1e293b, #0f172a);">
+        <div class="icon" style="background: rgba(16, 185, 129, 0.1); color: #10b981;">
+            <i class="fas fa-hand-holding-usd"></i>
+        </div>
+        <div>
+            <h3>Contas a Receber</h3>
+            <p id="kpi-contas-receber">R$ 0,00</p>
+            <small id="kpi-contas-receber-qtd" style="color: var(--text-muted);">0 pendentes</small>
+        </div>
+    </div>
+
+    <div class="dash-card" style="background: linear-gradient(145deg, #1e293b, #0f172a);">
+        <div class="icon" style="background: rgba(239, 68, 68, 0.1); color: #ef4444;">
+            <i class="fas fa-exclamation-triangle"></i>
+        </div>
+        <div>
+            <h3>Contas Vencidas</h3>
+            <p id="kpi-vencidas-total">R$ 0,00</p>
+            <small id="kpi-vencidas-qtd" style="color: var(--text-muted);">0 vencidas</small>
+        </div>
+    </div>
+
+    <div class="dash-card" style="background: linear-gradient(145deg, #1e293b, #0f172a);">
+        <div class="icon" style="background: rgba(59, 130, 246, 0.1); color: #3b82f6;">
+            <i class="fas fa-box"></i>
+        </div>
+        <div>
+            <h3>Valor em Estoque</h3>
+            <p id="kpi-valor-estoque">R$ 0,00</p>
+            <small id="kpi-produtos-baixo" style="color: var(--text-muted);">0 produtos baixos</small>
+        </div>
+    </div>
+</div>
+
+<!-- Fluxo do Mês -->
+<div class="panel" style="margin-top: 32px;">
+    <h2>Fluxo de Caixa do Mês</h2>
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px; margin-top: 20px;">
+        <div style="padding: 16px; background: rgba(16, 185, 129, 0.1); border-radius: var(--radius-sm); border: 1px solid rgba(16, 185, 129, 0.2);">
+            <div style="font-size: 0.875rem; color: var(--text-muted); margin-bottom: 4px;">Entradas</div>
+            <div style="font-size: 1.5rem; font-weight: 700; color: #10b981;" id="fluxo-entradas">R$ 0,00</div>
+        </div>
+        <div style="padding: 16px; background: rgba(239, 68, 68, 0.1); border-radius: var(--radius-sm); border: 1px solid rgba(239, 68, 68, 0.2);">
+            <div style="font-size: 0.875rem; color: var(--text-muted); margin-bottom: 4px;">Saídas</div>
+            <div style="font-size: 1.5rem; font-weight: 700; color: #ef4444;" id="fluxo-saidas">R$ 0,00</div>
+        </div>
+        <div style="padding: 16px; background: rgba(59, 130, 246, 0.1); border-radius: var(--radius-sm); border: 1px solid rgba(59, 130, 246, 0.2);">
+            <div style="font-size: 0.875rem; color: var(--text-muted); margin-bottom: 4px;">Saldo</div>
+            <div style="font-size: 1.5rem; font-weight: 700; color: #3b82f6;" id="fluxo-saldo">R$ 0,00</div>
+        </div>
+    </div>
+</div>
+
+<!-- Ações Rápidas -->
+<div class="panel">
+    <h2>Ações Rápidas</h2>
+    <div style="display: flex; gap: 12px; flex-wrap: wrap; margin-top: 16px;">
+        <a href="/contas_pagar" class="btn btn-secondary">
+            <i class="fas fa-money-bill-wave"></i> Ver Contas a Pagar
+        </a>
+        <a href="/contas_receber" class="btn btn-secondary">
+            <i class="fas fa-hand-holding-usd"></i> Ver Contas a Receber
+        </a>
+        <a href="/fluxo_caixa" class="btn btn-secondary">
+            <i class="fas fa-cash-register"></i> Ver Fluxo de Caixa
+        </a>
+        <a href="/relatorios" class="btn btn-secondary">
+            <i class="fas fa-chart-bar"></i> Relatórios
+        </a>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+    carregarKPIs();
+});
+
+async function carregarKPIs() {
+    try {
+        const response = await fetch('/api/dashboard/kpis');
+        const data = await response.json();
+        
+        // Contas a pagar
+        document.getElementById('kpi-contas-pagar').textContent = formatarMoeda(data.contas_pagar.valor_total);
+        document.getElementById('kpi-contas-pagar-qtd').textContent = `${data.contas_pagar.total} pendentes`;
+        
+        // Contas a receber
+        document.getElementById('kpi-contas-receber').textContent = formatarMoeda(data.contas_receber.valor_total);
+        document.getElementById('kpi-contas-receber-qtd').textContent = `${data.contas_receber.total} pendentes`;
+        
+        // Contas vencidas
+        const totalVencidas = data.vencidas_pagar.valor_total + data.vencidas_receber.valor_total;
+        const qtdVencidas = data.vencidas_pagar.total + data.vencidas_receber.total;
+        document.getElementById('kpi-vencidas-total').textContent = formatarMoeda(totalVencidas);
+        document.getElementById('kpi-vencidas-qtd').textContent = `${qtdVencidas} vencidas`;
+        
+        // Valor estoque
+        document.getElementById('kpi-valor-estoque').textContent = formatarMoeda(data.valor_estoque);
+        document.getElementById('kpi-produtos-baixo').textContent = `${data.produtos_baixo_estoque} produtos baixos`;
+        
+        // Fluxo do mês
+        const entradas = data.fluxo_mes.entradas || 0;
+        const saidas = data.fluxo_mes.saidas || 0;
+        const saldo = entradas - saidas;
+        
+        document.getElementById('fluxo-entradas').textContent = formatarMoeda(entradas);
+        document.getElementById('fluxo-saidas').textContent = formatarMoeda(saidas);
+        document.getElementById('fluxo-saldo').textContent = formatarMoeda(saldo);
+        document.getElementById('fluxo-saldo').style.color = saldo >= 0 ? '#10b981' : '#ef4444';
+        
+    } catch (error) {
+        console.error('Erro ao carregar KPIs:', error);
+    }
+}
+
+function formatarMoeda(valor) {
+    return new Intl.NumberFormat('pt-BR', {
+        style: 'currency',
+        currency: 'BRL'
+    }).format(valor || 0);
+}
+</script>
+{% endblock %}

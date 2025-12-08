@@ -1,0 +1,185 @@
+{% extends "base.html" %}
+
+{% block title %}Relatórios - Tabacaria{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div class="page-title">
+        <h1>Relatórios Gerenciais</h1>
+        <p>Análises e indicadores do negócio</p>
+    </div>
+</div>
+
+<div class="dash-grid" style="grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));">
+    <div class="dash-card" onclick="visualizarRelatorio('curva-abc')">
+        <div class="icon" style="background: rgba(239, 68, 68, 0.1); color: #ef4444;">
+            <i class="fas fa-chart-pie"></i>
+        </div>
+        <div>
+            <h3>Curva ABC</h3>
+            <p style="font-size: 1rem; font-weight: 400;">Classificação de produtos por valor</p>
+        </div>
+    </div>
+
+    <div class="dash-card" onclick="visualizarRelatorio('lucratividade')">
+        <div class="icon" style="background: rgba(16, 185, 129, 0.1); color: #10b981;">
+            <i class="fas fa-dollar-sign"></i>
+        </div>
+        <div>
+            <h3>Lucratividade</h3>
+            <p style="font-size: 1rem; font-weight: 400;">Análise de vendas por produto</p>
+        </div>
+    </div>
+
+    <div class="dash-card" onclick="visualizarRelatorio('estoque')">
+        <div class="icon" style="background: rgba(59, 130, 246, 0.1); color: #3b82f6;">
+            <i class="fas fa-boxes"></i>
+        </div>
+        <div>
+            <h3>Estoque Valorizado</h3>
+            <p style="font-size: 1rem; font-weight: 400;">Valor total por categoria</p>
+        </div>
+    </div>
+</div>
+
+<div class="panel" id="areaRelatorio" style="display: none; margin-top: 32px;">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+        <h2 id="tituloRelatorio"></h2>
+        <button class="btn btn-secondary" onclick="fecharRelatorio()">
+            <i class="fas fa-times"></i> Fechar
+        </button>
+    </div>
+    <div id="conteudoRelatorio"></div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+async function visualizarRelatorio(tipo) {
+    const area = document.getElementById('areaRelatorio');
+    const titulo = document.getElementById('tituloRelatorio');
+    const conteudo = document.getElementById('conteudoRelatorio');
+    
+    area.style.display = 'block';
+    conteudo.innerHTML = '<p style="text-align: center; padding: 40px;">Carregando...</p>';
+    
+    try {
+        if (tipo === 'curva-abc') {
+            titulo.textContent = 'Curva ABC - Classificação de Produtos';
+            const response = await fetch('/api/relatorios/curva_abc');
+            const dados = await response.json();
+            renderizarCurvaABC(dados);
+        } else if (tipo === 'lucratividade') {
+            titulo.textContent = 'Análise de Lucratividade';
+            const response = await fetch('/api/relatorios/lucratividade');
+            const dados = await response.json();
+            renderizarLucratividade(dados);
+        } else if (tipo === 'estoque') {
+            titulo.textContent = 'Estoque Valorizado por Categoria';
+            const response = await fetch('/api/relatorios/estoque_valorizado');
+            const dados = await response.json();
+            renderizarEstoqueValorizado(dados);
+        }
+    } catch (error) {
+        console.error('Erro ao carregar relatório:', error);
+        conteudo.innerHTML = '<p style="color: #ef4444;">Erro ao carregar relatório</p>';
+    }
+}
+
+function renderizarCurvaABC(dados) {
+    const conteudo = document.getElementById('conteudoRelatorio');
+    
+    if (dados.length === 0) {
+        conteudo.innerHTML = '<p>Nenhum produto encontrado</p>';
+        return;
+    }
+    
+    let html = '<table><thead><tr><th>Produto</th><th>Qtd</th><th>Valor Estoque</th><th>%</th><th>% Acum.</th><th>Classe</th></tr></thead><tbody>';
+    
+    dados.forEach(p => {
+        const classeColor = p.classe === 'A' ? '#10b981' : p.classe === 'B' ? '#3b82f6' : '#ef4444';
+        html += `
+            <tr>
+                <td>${p.nome}</td>
+                <td>${p.quantidade}</td>
+                <td>${formatarMoeda(p.valor_estoque)}</td>
+                <td>${p.percentual}%</td>
+                <td>${p.acumulado}%</td>
+                <td><span style="color: ${classeColor}; font-weight: 700;">${p.classe}</span></td>
+            </tr>
+        `;
+    });
+    
+    html += '</tbody></table>';
+    conteudo.innerHTML = html;
+}
+
+function renderizarLucratividade(dados) {
+    const conteudo = document.getElementById('conteudoRelatorio');
+    
+    if (dados.length === 0) {
+        conteudo.innerHTML = '<p>Nenhuma venda registrada</p>';
+        return;
+    }
+    
+    let html = '<table><thead><tr><th>Produto</th><th>Vendas</th><th>Qtd Vendida</th><th>Preço Médio</th><th>Receita Total</th></tr></thead><tbody>';
+    
+    dados.forEach(p => {
+        html += `
+            <tr>
+                <td>${p.nome}</td>
+                <td>${p.total_vendas}</td>
+                <td>${p.quantidade_vendida}</td>
+                <td>${formatarMoeda(p.preco_medio_venda)}</td>
+                <td>${formatarMoeda(p.receita_total)}</td>
+            </tr>
+        `;
+    });
+    
+    html += '</tbody></table>';
+    conteudo.innerHTML = html;
+}
+
+function renderizarEstoqueValorizado(dados) {
+    const conteudo = document.getElementById('conteudoRelatorio');
+    
+    let html = '<table><thead><tr><th>Categoria</th><th>Produtos</th><th>Qtd Total</th><th>Preço Médio</th><th>Valor Total</th></tr></thead><tbody>';
+    
+    dados.por_categoria.forEach(c => {
+        html += `
+            <tr>
+                <td>${c.categoria || 'Sem categoria'}</td>
+                <td>${c.total_produtos}</td>
+                <td>${c.quantidade_total}</td>
+                <td>${formatarMoeda(c.preco_medio)}</td>
+                <td>${formatarMoeda(c.valor_total)}</td>
+            </tr>
+        `;
+    });
+    
+    html += `
+        <tr style="border-top: 2px solid var(--accent-gold); font-weight: 700;">
+            <td>TOTAL GERAL</td>
+            <td>${dados.total_geral.total_produtos}</td>
+            <td>${dados.total_geral.quantidade_total}</td>
+            <td>-</td>
+            <td>${formatarMoeda(dados.total_geral.valor_total)}</td>
+        </tr>
+    `;
+    
+    html += '</tbody></table>';
+    conteudo.innerHTML = html;
+}
+
+function fecharRelatorio() {
+    document.getElementById('areaRelatorio').style.display = 'none';
+}
+
+function formatarMoeda(valor) {
+    return new Intl.NumberFormat('pt-BR', {
+        style: 'currency',
+        currency: 'BRL'
+    }).format(valor || 0);
+}
+</script>
+{% endblock %}

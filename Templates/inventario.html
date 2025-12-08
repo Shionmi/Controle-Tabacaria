@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+{% block title %}Inventário - Tabacaria{% endblock %}
+{% block content %}
+<div class="page-header">
+    <div class="page-title">
+        <h1>Inventário</h1>
+        <p>Contagem física e ajustes de estoque</p>
+    </div>
+    <button class="btn btn-primary" onclick="alert('Funcionalidade em desenvolvimento')">
+        <i class="fas fa-plus"></i> Novo Inventário
+    </button>
+</div>
+<div class="panel">
+    <p style="text-align: center; padding: 60px 20px; color: var(--text-muted);">
+        <i class="fas fa-clipboard-list" style="font-size: 3rem; display: block; margin-bottom: 20px; opacity: 0.3;"></i>
+        Módulo de Inventário em desenvolvimento.<br>
+        API backend já disponível em /api/inventarios
+    </p>
+</div>
+{% endblock %}

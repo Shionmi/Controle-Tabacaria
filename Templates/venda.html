@@ -3,88 +3,116 @@
 {% block title %}Registrar Venda{% endblock %}
 
 {% block content %}
-<div class="header">
-    <img src="{{ url_for('static', filename='Images/Logo_tabacaria.png') }}" alt="Logo" class="logo">
-    <div>
+<div class="page-header">
+    <div class="page-title">
         <h1>Registrar Venda</h1>
-        <p class="muted">Selecione os produtos e quantidades para venda</p>
+        <p>Selecione os produtos e finalize a venda</p>
     </div>
 </div>
 
-<div class="panel sale-form">
+<div class="panel">
     <h2>Nova Venda</h2>
     <div id="alertBox"></div>
 
     <form id="saleForm" autocomplete="off">
-        <div class="form-group">
-            <label>Cliente</label>
-            <div style="display:flex; gap:12px; align-items:center; margin-bottom:8px">
-                <label><input type="radio" name="cliente_mode" value="existing" checked> Cliente cadastrado</label>
-                <label><input type="radio" name="cliente_mode" value="manual"> Digitar nome</label>
+        <!-- Cliente Section -->
+        <div class="form-group" style="background: rgba(255,255,255,0.02); padding: 20px; border-radius: var(--radius-md); border: 1px solid rgba(255,255,255,0.05);">
+            <label style="font-size: 1.1rem; color: var(--accent-gold); margin-bottom: 16px;">Cliente</label>
+            
+            <div style="display:flex; gap:24px; align-items:center; margin-bottom:16px">
+                <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                    <input type="radio" name="cliente_mode" value="existing" checked> 
+                    <span>Cliente cadastrado</span>
+                </label>
+                <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                    <input type="radio" name="cliente_mode" value="manual"> 
+                    <span>Digitar nome</span>
+                </label>
             </div>
+
             <div id="clienteExisting">
-                <div class="client-combobox" style="display:flex; align-items:center; gap:6px;">
-                    <div style="flex:1; position:relative">
-                        <input type="text" id="clienteNome" placeholder="Buscar cliente cadastrado (opcional)" autocomplete="off" style="width:100%; padding-right:28px">
-                        <!-- dropdown list -->
-                        <div id="clienteList" style="display:none; position:absolute; left:0; right:0; background:#fff; border:1px solid #e5e7eb; border-radius:8px; margin-top:4px; max-height:200px; overflow-y:auto; z-index:50"></div>
+                <div style="position:relative">
+                    <div style="display: flex; gap: 8px;">
+                        <input type="text" id="clienteNome" placeholder="Buscar cliente cadastrado..." autocomplete="off">
+                        <button type="button" id="clienteToggle" class="btn btn-secondary" style="padding: 0 16px;">▼</button>
                     </div>
-                    <button id="clienteToggle" type="button" aria-label="Abrir lista de clientes" style="width:32px; height:32px; border-radius:6px; border:1px solid #ddd; background:#fff; cursor:pointer">▾</button>
+                    <div id="clienteList" style="display:none; position:absolute; top: 100%; left:0; right:0; background: var(--bg-card); border:1px solid var(--accent-gold); border-radius: var(--radius-sm); margin-top:4px; max-height:200px; overflow-y:auto; z-index:50; box-shadow: var(--shadow-md);"></div>
                 </div>
-                <div id="clienteDetails" style="display:none; margin-top:8px; background:#fafafa; border:1px solid #eee; padding:8px; border-radius:6px; font-size:13px"></div>
+                <div id="clienteDetails" style="display:none; margin-top:12px; background: rgba(239, 68, 68, 0.1); padding: 12px; border-radius: var(--radius-sm); border: 1px solid rgba(239, 68, 68, 0.2); color: var(--text-main);"></div>
             </div>
+
             <div id="clienteManual" style="display:none">
                 <input type="text" id="clienteManualNome" placeholder="Digite o nome do cliente">
             </div>
         </div>
 
-        <div class="items-list">
-            <div id="itemsList">
-                <div class="item-row">
+        <!-- Items Section -->
+        <div class="form-group" style="margin-top: 24px;">
+            <label style="font-size: 1.1rem; color: var(--accent-gold); margin-bottom: 16px;">Itens da Venda</label>
+            
+            <div id="itemsList" style="display: grid; gap: 12px;">
+                <div class="item-row" style="display: grid; grid-template-columns: 1fr 100px 40px; gap: 12px; align-items: center;">
                     <select class="produto-select" required>
                         <option value="">Selecione um produto...</option>
                     </select>
-                    <input type="number" class="quantidade-input" min="1" placeholder="Qtd." required>
-                    <button type="button" class="btn btn-danger btn-remove" onclick="this.closest('.item-row').remove(); updatePreview()" style="display:none">&times;</button>
+                    <input type="number" class="quantidade-input" min="1" placeholder="Qtd" required>
+                    <button type="button" class="btn btn-danger btn-remove" onclick="this.closest('.item-row').remove(); updatePreview()" style="display:none; padding: 8px;">&times;</button>
                 </div>
             </div>
-            <button type="button" class="add-item-btn">+ Adicionar Item</button>
+            
+            <button type="button" class="btn btn-secondary" style="margin-top: 16px; width: 100%; border-style: dashed;" onclick="addItemRow()">
+                <i class="fas fa-plus"></i> Adicionar Item
+            </button>
+        </div>
 
-            <div class="preview-panel">
-                <div id="previewItems"></div>
-                <div class="preview-total">Total: R$ <span id="previewTotal">0,00</span></div>
-                <div style="margin-top:8px; display:flex; gap:10px; align-items:center;">
-                    <label style="font-size:13px; color:var(--muted);">Desconto %</label>
-                    <input type="text" id="discountPercent" placeholder="ex: -10 ou 10" style="width:100px; padding:8px; border-radius:8px; border:1px solid #e6edf3" />
-                    <div style="margin-left:auto; font-weight:700">Total com desconto: R$ <span id="previewTotalAfter">0,00</span></div>
+        <!-- Preview Section -->
+        <div style="background: rgba(0,0,0,0.2); padding: 24px; border-radius: var(--radius-md); margin-top: 24px; border: 1px solid rgba(255,255,255,0.05);">
+            <h3 style="margin-bottom: 16px; font-size: 1rem; text-transform: uppercase; letter-spacing: 1px; color: var(--text-muted);">Resumo</h3>
+            
+            <div id="previewItems" style="margin-bottom: 16px; font-size: 0.9rem; color: var(--text-muted);"></div>
+            
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; font-size: 1.1rem;">
+                <span>Subtotal:</span>
+                <span>R$ <span id="previewTotal">0,00</span></span>
+            </div>
+            
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+                <div style="display: flex; align-items: center; gap: 12px;">
+                    <label style="font-size: 0.9rem;">Desconto (%):</label>
+                    <input type="number" id="discountPercent" placeholder="0" style="width: 80px; padding: 8px;">
                 </div>
+            </div>
+            
+            <div style="display: flex; justify-content: space-between; align-items: center; padding-top: 16px; border-top: 1px solid rgba(255,255,255,0.1); font-size: 1.5rem; font-weight: bold; color: var(--accent-gold);">
+                <span>Total Final:</span>
+                <span>R$ <span id="previewTotalAfter">0,00</span></span>
             </div>
         </div>
 
-        <div class="form-group">
+        <div class="form-group" style="margin-top: 24px;">
             <label>Observações</label>
-            <textarea id="observacao" rows="2" placeholder="Notas adicionais sobre a venda..."></textarea>
+            <textarea id="observacao" rows="3" placeholder="Notas adicionais..."></textarea>
         </div>
 
-        <div style="text-align:right; margin-top:20px">
-            <button type="submit" class="btn btn-primary">Finalizar Venda</button>
+        <div style="text-align:right; margin-top:32px">
+            <button type="submit" class="btn btn-primary" style="padding: 16px 32px; font-size: 1.1rem;">
+                <i class="fas fa-check"></i> Finalizar Venda
+            </button>
         </div>
     </form>
 </div>
 {% endblock %}
 
 {% block extra_js %}
-    <script>
+<script>
     // Global state
     let produtos = [];
-    let revendedores = [];
     let clientes = [];
-    let selectedRevendedor = null;
     let selectedCliente = null;
 
     function showAlert(message, success=true) {
         const box = document.getElementById('alertBox');
-        box.innerHTML = `<div class="alert ${success?'alert-success':'alert-danger'}">${message}</div>`;
+        box.innerHTML = `<div style="padding: 12px; border-radius: var(--radius-sm); background: ${success ? 'rgba(16, 185, 129, 0.1)' : 'rgba(239, 68, 68, 0.1)'}; color: ${success ? '#10b981' : '#ef4444'}; border: 1px solid ${success ? 'rgba(16, 185, 129, 0.2)' : 'rgba(239, 68, 68, 0.2)'}; margin-bottom: 20px;">${message}</div>`;
         setTimeout(() => box.innerHTML = '', 6000);
     }
 
@@ -96,7 +124,7 @@
             updateProdutoSelects();
         } catch(err) {
             console.error(err);
-            showAlert('Erro ao carregar produtos. Tente recarregar a página.', false);
+            showAlert('Erro ao carregar produtos.', false);
         }
     }
 
@@ -105,306 +133,239 @@
             const res = await fetch('/api/clientes');
             if (!res.ok) throw new Error('Falha ao carregar clientes');
             clientes = await res.json();
-            console.log('loadClientes: carregados', clientes.length, 'clientes');
         } catch(err) {
-            console.error('Não foi possível carregar clientes', err);
-            clientes = [];
+            console.error(err);
         }
     }
 
     function updateProdutoSelects() {
         document.querySelectorAll('.produto-select').forEach(select => {
             const currentVal = select.value;
-            select.innerHTML = '<option value="">Selecione um produto...</option>' +
-                produtos.map(p => `<option value="${p.id_produto}" ${p.id_produto==currentVal?'selected':''}>${p.nome} (R$ ${p.preco.toFixed(2)})</option>`).join('');
+            select.innerHTML = '<option value="">Selecione um produto...</option>';
+            produtos.forEach(p => {
+                const option = document.createElement('option');
+                option.value = p.id_produto;
+                option.textContent = `${p.nome} (Estoque: ${p.quantidade}) - R$ ${Number(p.preco).toFixed(2)}`;
+                option.dataset.price = p.preco;
+                option.dataset.stock = p.quantidade;
+                select.appendChild(option);
+            });
+            select.value = currentVal;
         });
     }
 
     function addItemRow() {
-        const row = document.createElement('div');
-        row.className = 'item-row';
-        row.innerHTML = `
+        const div = document.createElement('div');
+        div.className = 'item-row';
+        div.style.cssText = 'display: grid; grid-template-columns: 1fr 100px 40px; gap: 12px; align-items: center;';
+        div.innerHTML = `
             <select class="produto-select" required>
                 <option value="">Selecione um produto...</option>
-                ${produtos.map(p => `<option value="${p.id_produto}">${p.nome} (R$ ${p.preco.toFixed(2)})</option>`).join('')}
             </select>
-            <input type="number" class="quantidade-input" min="1" placeholder="Qtd." required>
-            <button type="button" class="btn btn-danger btn-remove" onclick="this.closest('.item-row').remove(); updatePreview()">&times;</button>
+            <input type="number" class="quantidade-input" min="1" placeholder="Qtd" required>
+            <button type="button" class="btn btn-danger btn-remove" onclick="this.closest('.item-row').remove(); updatePreview()" style="padding: 8px;">&times;</button>
         `;
-        document.getElementById('itemsList').appendChild(row);
-        const selects = document.querySelectorAll('.produto-select');
-        if (selects.length > 1) {
-            document.querySelectorAll('.btn-remove').forEach(btn => btn.style.display = '');
-        }
-        row.querySelector('select').addEventListener('change', updatePreview);
-        row.querySelector('input').addEventListener('input', updatePreview);
-        // mark listeners attached to avoid double-binding if we scan rows later
-        row.dataset.listenersAttached = '1';
+        document.getElementById('itemsList').appendChild(div);
+        
+        // Populate select
+        const select = div.querySelector('.produto-select');
+        produtos.forEach(p => {
+            const option = document.createElement('option');
+            option.value = p.id_produto;
+            option.textContent = `${p.nome} (Estoque: ${p.quantidade}) - R$ ${Number(p.preco).toFixed(2)}`;
+            option.dataset.price = p.preco;
+            option.dataset.stock = p.quantidade;
+            select.appendChild(option);
+        });
+
+        // Add listeners
+        select.addEventListener('change', updatePreview);
+        div.querySelector('.quantidade-input').addEventListener('input', updatePreview);
+        
+        // Show remove buttons if > 1 row
+        document.querySelectorAll('.btn-remove').forEach(btn => btn.style.display = 'block');
     }
 
     function updatePreview() {
-        const items = [];
         let total = 0;
+        const previewDiv = document.getElementById('previewItems');
+        previewDiv.innerHTML = '';
+        
         document.querySelectorAll('.item-row').forEach(row => {
             const select = row.querySelector('.produto-select');
-            const qty = parseInt(row.querySelector('.quantidade-input').value) || 0;
-            if (select.value && qty > 0) {
-                const produto = produtos.find(p => p.id_produto == select.value);
-                if (produto) {
-                    const subtotal = produto.preco * qty;
-                    items.push({ nome: produto.nome, quantidade: qty, preco: produto.preco, subtotal });
-                    total += subtotal;
-                }
+            const qtdInput = row.querySelector('.quantidade-input');
+            const qtd = parseInt(qtdInput.value) || 0;
+            
+            if (select.value && qtd > 0) {
+                const option = select.selectedOptions[0];
+                const price = parseFloat(option.dataset.price);
+                const sub = price * qtd;
+                total += sub;
+                
+                previewDiv.innerHTML += `
+                    <div style="display: flex; justify-content: space-between; margin-bottom: 4px;">
+                        <span>${option.text.split(' (')[0]} x${qtd}</span>
+                        <span>R$ ${sub.toFixed(2)}</span>
+                    </div>
+                `;
             }
         });
-        document.getElementById('previewItems').innerHTML = items.map(item => `
-            <div class="preview-item"><div>${item.quantidade}x ${item.nome}</div><div>R$ ${item.subtotal.toFixed(2)}</div></div>
-        `).join('');
-        // compute discount if provided (accept negative like '-10' as 10%)
-        let discountPercent = 0;
-        const discountEl = document.getElementById('discountPercent');
-        if (discountEl) {
-            const raw = (discountEl.value || '').toString().trim();
-            if (raw !== '') {
-                const parsed = parseFloat(raw.replace(',', '.'));
-                if (!isNaN(parsed)) {
-                    discountPercent = Math.abs(parsed);
-                    if (discountPercent > 100) discountPercent = 100;
-                }
-            }
-        }
-        const discountAmount = total * (discountPercent / 100);
-        const totalAfter = Math.max(0, total - discountAmount);
+
         document.getElementById('previewTotal').textContent = total.toFixed(2);
-        const afterEl = document.getElementById('previewTotalAfter');
-        if (afterEl) afterEl.textContent = totalAfter.toFixed(2);
+        
+        const discount = parseFloat(document.getElementById('discountPercent').value) || 0;
+        const finalTotal = total * (1 - (discount / 100));
+        document.getElementById('previewTotalAfter').textContent = finalTotal.toFixed(2);
     }
 
-    document.addEventListener('submit', (e) => {}, true);
-
-    document.getElementById('saleForm').addEventListener('submit', async (e) => {
-        e.preventDefault();
-        const items = [];
-        document.querySelectorAll('.item-row').forEach(row => {
-            const pid = row.querySelector('.produto-select').value;
-            const qty = parseInt(row.querySelector('.quantidade-input').value);
-            if (pid && qty > 0) items.push({ id_produto: parseInt(pid), quantidade: qty });
-        });
-        if (!items.length) { showAlert('Adicione pelo menos um item à venda.', false); return; }
-        const payload = { items, observacao: document.getElementById('observacao').value.trim() };
-        // revendedor (opcional)
-        if (selectedRevendedor) {
-            payload.id_revendedor = selectedRevendedor.id_revendedor;
-        } else {
-            const revendedorEl = document.getElementById('revendedorNome');
-            const nomeRev = revendedorEl ? revendedorEl.value.trim() : '';
-            if (nomeRev) {
-                try {
-                    const res = await fetch('/api/revendedores', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({nome: nomeRev}) });
-                    if (!res.ok) throw new Error('Falha ao criar revendedor');
-                    const data = await res.json();
-                    payload.id_revendedor = data.id_revendedor;
-                } catch(err) {
-                    console.error(err);
-                    showAlert('Erro ao criar revendedor. Tente novamente.', false);
-                    return;
-                }
-            }
-        }
-
-        // cliente: prefer selectedCliente (existing) else manual name
-        if (selectedCliente) {
-            payload.id_cliente = selectedCliente.id_cliente;
-        } else {
-            const clienteManual = document.getElementById('clienteManualNome').value.trim();
-            if (clienteManual) payload.cliente_nome = clienteManual;
-        }
-
-        // compute totals and discount to include in payload
-        try {
-            let total = 0;
-            items.forEach(it => {
-                const p = produtos.find(pr => pr.id_produto == it.id_produto);
-                if (p) total += (p.preco || 0) * (it.quantidade || 0);
-            });
-            // parse discount (accept -10 or 10 meaning 10%)
-            let discountPercent = 0;
-            const discountEl = document.getElementById('discountPercent');
-            if (discountEl) {
-                const raw = (discountEl.value || '').toString().trim();
-                if (raw !== '') {
-                    const parsed = parseFloat(raw.replace(',', '.'));
-                    if (!isNaN(parsed)) {
-                        discountPercent = Math.abs(parsed);
-                        if (discountPercent > 100) discountPercent = 100;
-                    }
-                }
-            }
-            const discountAmount = total * (discountPercent / 100);
-            const totalAfter = Math.max(0, total - discountAmount);
-            payload.discount_percent = discountPercent;
-            payload.total = parseFloat(totalAfter.toFixed(2));
-        } catch (err) {
-            console.error('Erro ao calcular total/discount:', err);
-        }
-        try {
-            const res = await fetch('/api/vendas', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(payload) });
-            const data = await res.json(); if (!res.ok) { showAlert(data.erro || 'Falha ao registrar venda.', false); return; }
-            showAlert(`Venda #${data.id_venda} registrada com sucesso!`);
-            document.querySelectorAll('.item-row').forEach((row,idx)=>{ if(idx===0){ row.querySelector('select').value=''; row.querySelector('input').value=''; } else row.remove(); });
-            const obsEl = document.getElementById('observacao'); if (obsEl) obsEl.value='';
-            const revEl = document.getElementById('revendedorNome'); if (revEl) revEl.value='';
-            selectedRevendedor=null; updatePreview();
-        } catch(err) { console.error(err); showAlert('Erro ao comunicar com o servidor.', false); }
-    });
-
-    document.addEventListener('click', (e)=>{ if (e.target.matches('.add-item-btn')) addItemRow(); });
-
-    async function loadRevendedores() {
-        try { const res = await fetch('/api/revendedores'); if (!res.ok) throw new Error(); revendedores = await res.json(); } catch(e){ revendedores = []; }
-    }
-
-    // revendedor fields are optional in the form; guard access so missing elements don't break the script
-    const revendedorInput = document.getElementById('revendedorNome');
-    const revendedorList = document.getElementById('revendedorList');
-    if (revendedorInput && revendedorList) {
-        revendedorInput.addEventListener('input', () => {
-            const val = revendedorInput.value.trim().toLowerCase(); if(!val){ revendedorList.style.display='none'; selectedRevendedor=null; return; }
-            const matches = revendedores.filter(r => r.nome.toLowerCase().includes(val)).slice(0,5);
-            if(!matches.length){ revendedorList.style.display='none'; selectedRevendedor=null; return; }
-            revendedorList.innerHTML = matches.map(r=>`<div class="typeahead-item" style="padding:8px 12px; cursor:pointer; border-bottom:1px solid #f3f3f3" onclick="selectRevendedor(${r.id_revendedor}, '${r.nome.replace("'","\\'")}')">${r.nome}</div>`).join('');
-            revendedorList.style.display='block';
-        });
-    }
-
-    // Client typeahead
+    // Cliente Search Logic
     const clienteInput = document.getElementById('clienteNome');
     const clienteList = document.getElementById('clienteList');
-    const clienteManualInput = document.getElementById('clienteManualNome');
-    document.getElementsByName('cliente_mode').forEach(r => r.addEventListener('change', (e)=>{
-        if (e.target.value === 'existing') { document.getElementById('clienteExisting').style.display=''; document.getElementById('clienteManual').style.display='none'; }
-        else { document.getElementById('clienteExisting').style.display='none'; document.getElementById('clienteManual').style.display=''; selectedCliente=null; clienteList.style.display='none'; }
-    }));
+    const clienteToggle = document.getElementById('clienteToggle');
 
-    clienteInput.addEventListener('input', ()=>{
-        const val = clienteInput.value.trim().toLowerCase();
-        if(!val){ clienteList.style.display='none'; selectedCliente=null; return; }
-        const matches = clientes.filter(c => (c.nome||'').toLowerCase().includes(val)).slice(0,6);
-        if(!matches.length){
-            clienteList.innerHTML = '<div style="padding:8px 12px;color:#666">Nenhum cliente encontrado</div>';
-            clienteList.style.display='block';
-            selectedCliente=null; return;
+    function filterClientes() {
+        const term = clienteInput.value.toLowerCase();
+        const filtered = clientes.filter(c => c.nome.toLowerCase().includes(term));
+        
+        clienteList.innerHTML = '';
+        if (filtered.length === 0) {
+            clienteList.innerHTML = '<div style="padding:8px; color:var(--text-muted)">Nenhum cliente encontrado</div>';
+        } else {
+            filtered.forEach(c => {
+                const div = document.createElement('div');
+                div.style.padding = '8px 12px';
+                div.style.cursor = 'pointer';
+                div.style.borderBottom = '1px solid rgba(255,255,255,0.05)';
+                div.onmouseover = () => div.style.background = 'rgba(255,255,255,0.05)';
+                div.onmouseout = () => div.style.background = 'transparent';
+                div.textContent = c.nome;
+                div.onclick = () => selectCliente(c);
+                clienteList.appendChild(div);
+            });
         }
-        // build list with clickable rows
-        clienteList.innerHTML = matches.map(c=>`<div class="typeahead-item" tabindex="0" style="padding:8px 12px; cursor:pointer; border-bottom:1px solid #f3f3f3" data-id="${c.id_cliente}" data-nome="${(c.nome||'').replace("'","\\'")}">${c.nome}</div>`).join('');
-        clienteList.style.display='block';
-        // attach keyboard/click handlers
-        clienteList.querySelectorAll('.typeahead-item').forEach(it=>{
-            it.addEventListener('click', ()=> selectCliente(it.dataset.id, it.dataset.nome));
-            it.addEventListener('keydown', (ev)=>{ if(ev.key==='Enter') selectCliente(it.dataset.id, it.dataset.nome); });
+        clienteList.style.display = 'block';
+    }
+
+    function selectCliente(c) {
+        selectedCliente = c;
+        clienteInput.value = c.nome;
+        clienteList.style.display = 'none';
+        const details = document.getElementById('clienteDetails');
+        details.style.display = 'block';
+        details.innerHTML = `<strong>Cliente Selecionado:</strong> ${c.nome} <br> <small>${c.email || ''} - ${c.telefone || ''}</small>`;
+    }
+
+    clienteInput.addEventListener('input', filterClientes);
+    clienteInput.addEventListener('focus', filterClientes);
+    
+    clienteToggle.addEventListener('click', () => {
+        if (clienteList.style.display === 'none') filterClientes();
+        else clienteList.style.display = 'none';
+    });
+
+    document.addEventListener('click', (e) => {
+        if (!clienteInput.contains(e.target) && !clienteList.contains(e.target) && !clienteToggle.contains(e.target)) {
+            clienteList.style.display = 'none';
+        }
+    });
+
+    // Mode switching
+    document.querySelectorAll('input[name="cliente_mode"]').forEach(radio => {
+        radio.addEventListener('change', (e) => {
+            if (e.target.value === 'existing') {
+                document.getElementById('clienteExisting').style.display = 'block';
+                document.getElementById('clienteManual').style.display = 'none';
+            } else {
+                document.getElementById('clienteExisting').style.display = 'none';
+                document.getElementById('clienteManual').style.display = 'block';
+                selectedCliente = null;
+                document.getElementById('clienteDetails').style.display = 'none';
+                clienteInput.value = '';
+            }
         });
     });
 
-    function selectCliente(id,nome){
-        selectedCliente={id_cliente:parseInt(id),nome};
-        clienteInput.value=nome;
-        clienteList.style.display='none';
-        // load full cliente info and display
-        loadAndFillClient(parseInt(id));
-        // close toggle state
-        dropdownOpen = false; clienteToggle.textContent = '▾';
-    }
+    // Discount listener
+    document.getElementById('discountPercent').addEventListener('input', updatePreview);
 
-    // Load cliente details and show in panel
-    async function loadAndFillClient(id){
-        try{
-            const res = await fetch(`/api/clientes/${id}`);
-            if(!res.ok) throw new Error('Cliente não encontrado');
-            const c = await res.json();
-            const details = document.getElementById('clienteDetails');
-            details.innerHTML = `
-                <div style="font-weight:700">${c.nome || ''}</div>
-                <div>CPF: ${c.cpf || '-'}</div>
-                <div>Telefone: ${c.telefone || '-'}</div>
-                <div>E-mail: ${c.email || '-'}</div>
-                <div>${(c.endereco|| '-')}, ${(c.cidade||'-')} ${(c.estado||'')}</div>
-            `;
-            details.style.display = '';
-            // store selectedCliente with full data
-            selectedCliente = c;
-        }catch(err){ console.error(err); }
-    }
+    // Initial listeners for first row
+    document.querySelector('.produto-select').addEventListener('change', updatePreview);
+    document.querySelector('.quantidade-input').addEventListener('input', updatePreview);
+    document.querySelector('.add-item-btn').addEventListener('click', addItemRow);
 
-    // Unified click handler that safely hides optional typeahead lists when clicking outside.
-    document.addEventListener('click',(e)=>{
-        try {
-            if (revendedorList && revendedorInput && !revendedorList.contains(e.target) && e.target !== revendedorInput) revendedorList.style.display = 'none';
-        } catch(_){}
-        try {
-            if (clienteList && clienteInput && !clienteList.contains(e.target) && e.target !== clienteInput) clienteList.style.display = 'none';
-        } catch(_){}
-    });
+    // Submit
+    document.getElementById('saleForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        
+        const mode = document.querySelector('input[name="cliente_mode"]:checked').value;
+        let clienteId = null;
+        let clienteNome = null;
 
-    function selectRevendedor(id,nome){ selectedRevendedor={id_revendedor:id,nome}; if(revendedorInput) revendedorInput.value=nome; if(revendedorList) revendedorList.style.display='none'; }
-
-    // keyboard support: Enter selects first match
-    clienteInput.addEventListener('keydown', (e)=>{
-        if(e.key === 'Enter'){
-            if(clienteList.style.display === 'block'){
-                e.preventDefault();
-                const first = clienteList.querySelector('.typeahead-item');
-                if(first){
-                    first.click();
-                } else {
-                    // try exact match
-                    const val = clienteInput.value.trim().toLowerCase();
-                    const exact = clientes.find(c => (c.nome||'').toLowerCase() === val);
-                    if(exact) selectCliente(exact.id_cliente, exact.nome);
-                }
-            } else {
-                // if no dropdown visible, try to find exact
-                const val = clienteInput.value.trim().toLowerCase();
-                const exact = clientes.find(c => (c.nome||'').toLowerCase() === val);
-                if(exact){ e.preventDefault(); selectCliente(exact.id_cliente, exact.nome); }
+        if (mode === 'existing') {
+            if (!selectedCliente) {
+                showAlert('Selecione um cliente da lista ou mude para "Digitar nome"', false);
+                return;
+            }
+            clienteId = selectedCliente.id_cliente;
+        } else {
+            clienteNome = document.getElementById('clienteManualNome').value.trim();
+            if (!clienteNome) {
+                showAlert('Digite o nome do cliente', false);
+                return;
             }
         }
+
+        const itens = [];
+        document.querySelectorAll('.item-row').forEach(row => {
+            const prodId = row.querySelector('.produto-select').value;
+            const qtd = parseInt(row.querySelector('.quantidade-input').value);
+            if (prodId && qtd > 0) {
+                itens.push({ id_produto: prodId, quantidade: qtd });
+            }
+        });
+
+        if (itens.length === 0) {
+            showAlert('Adicione pelo menos um produto', false);
+            return;
+        }
+
+        const obs = document.getElementById('observacao').value;
+        const discount = parseFloat(document.getElementById('discountPercent').value) || 0;
+
+        try {
+            const res = await fetch('/api/vendas', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    id_cliente: clienteId,
+                    cliente_nome_manual: clienteNome,
+                    itens: itens,
+                    observacao: obs,
+                    desconto_percent: discount
+                })
+            });
+
+            if (res.ok) {
+                showAlert('Venda realizada com sucesso!', true);
+                document.getElementById('saleForm').reset();
+                document.getElementById('itemsList').innerHTML = '';
+                addItemRow();
+                updatePreview();
+                selectedCliente = null;
+                document.getElementById('clienteDetails').style.display = 'none';
+                loadProdutos(); // Reload stock
+            } else {
+                const data = await res.json();
+                showAlert(data.erro || 'Erro ao realizar venda', false);
+            }
+        } catch (err) {
+            console.error(err);
+            showAlert('Erro de conexão', false);
+        }
     });
 
-    // arrow toggle behaviour
-    const clienteToggle = document.getElementById('clienteToggle');
-    let dropdownOpen = false;
-    clienteToggle.addEventListener('click', ()=>{
-        if(dropdownOpen){ clienteList.style.display='none'; dropdownOpen=false; clienteToggle.textContent='▾'; return; }
-        // show first N clients
-        const matches = clientes.slice(0,12);
-        if(!matches.length){ clienteList.innerHTML = '<div style="padding:8px 12px;color:#666">Nenhum cliente cadastrado</div>'; clienteList.style.display='block'; clienteToggle.textContent='▴'; dropdownOpen=true; return; }
-        clienteList.innerHTML = matches.map(c=>`<div class="typeahead-item" tabindex="0" style="padding:8px 12px; cursor:pointer; border-bottom:1px solid #f3f3f3" data-id="${c.id_cliente}" data-nome="${(c.nome||'').replace("'","\\'")}">${c.nome}</div>`).join('');
-        clienteList.style.display='block'; clienteToggle.textContent='▴'; dropdownOpen=true;
-        clienteList.querySelectorAll('.typeahead-item').forEach(it=>{
-            it.addEventListener('click', ()=> selectCliente(it.dataset.id, it.dataset.nome));
-            it.addEventListener('keydown', (ev)=>{ if(ev.key==='Enter') selectCliente(it.dataset.id, it.dataset.nome); });
-        });
-    });
-
-    // Attach listeners to existing item rows (for the initial static row)
-    function attachItemRowListeners(){
-        document.querySelectorAll('.item-row').forEach(row=>{
-            // avoid attaching twice
-            if(row.dataset.listenersAttached) return;
-            const sel = row.querySelector('.produto-select');
-            const qty = row.querySelector('.quantidade-input');
-            if(sel) sel.addEventListener('change', updatePreview);
-            if(qty) qty.addEventListener('input', updatePreview);
-            row.dataset.listenersAttached = '1';
-        });
-    }
-
-    // Init: load data, then attach listeners so the initial row updates immediately
-    loadProdutos().then(()=> attachItemRowListeners());
-    loadRevendedores(); loadClientes();
-
-    // discount input updates preview
-    const discountInputEl = document.getElementById('discountPercent');
-    if (discountInputEl) discountInputEl.addEventListener('input', updatePreview);
-</script>
+    // Init
+    loadProdutos();
+    loadClientes();
+    </script>
 {% endblock %}

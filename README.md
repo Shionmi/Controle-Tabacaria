@@ -1,8 +1,13 @@
-# Controle-Tabacaria
-Sistema de controle de estoque para tabacaria
-Este repositório contém um sistema simples em Flask para gerenciar produtos, gerar etiquetas (códigos de barras) e registrar movimentações (entradas/saídas).
+# 🏪 Tabacaria Premium - Sistema ERP Completo
 
-Este arquivo descreve passo-a-passo o que você precisa instalar e configurar no computador da cliente (Windows) para rodar a aplicação localmente.
+Sistema profissional de gestão empresarial (ERP) para tabacaria com controle completo de:
+- 📦 **Estoque** - Produtos, movimentações, inventário
+- 💰 **Financeiro** - Contas a pagar/receber, fluxo de caixa
+- 🛒 **Compras** - Pedidos, fornecedores, recebimento
+- 📊 **Relatórios** - Curva ABC, lucratividade, análises
+- 🎨 **Interface Premium** - Tema Dark Blue, Red & Brown
+
+Desenvolvido com Flask, SQLite e interface moderna responsiva.
 
 ## Requisitos (Windows)
 - Python 3.10 ou 3.11 instalado (64-bit recomendado). Baixe em https://www.python.org/

@@ -5,57 +5,95 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}Estoque Tabacaria{% endblock %}</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
-    <!-- Inter font for modern/clean UI; Georgia fallback used in CSS font-family -->
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <!-- Inter & Playfair Display fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=Playfair+Display:ital,wght@0,400;0,600;0,700;1,400&display=swap" rel="stylesheet">
     <link rel="icon" href="{{ url_for('static', filename='Images/favicon.ico') }}" type="image/x-icon">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     {% block extra_css %}{% endblock %}
 </head>
 <body>
-    <!-- Side Drawer Navigation -->
-    <nav class="side-drawer">
-        <div class="drawer-handle"></div>
-        
-        <div class="drawer-logo">
-            <img src="{{ url_for('static', filename='Images/Logo_tabacaria.png') }}" alt="Logo">
-        </div>
+    <div class="app-layout">
+        <!-- Side Drawer Navigation -->
+        <nav class="side-drawer">
+            <div class="drawer-handle"></div>
+            
+            <div class="drawer-logo">
+                <img src="{{ url_for('static', filename='Images/Logo_tabacaria.png') }}" alt="Logo">
+            </div>
 
-        <a href="/" class="nav-item {% if request.endpoint == 'index' %}active{% endif %}">
-            <i class="fas fa-home"></i> Início
-        </a>
-        
-        <a href="/estoque" class="nav-item {% if request.endpoint == 'estoque' %}active{% endif %}">
-            <i class="fas fa-box-open"></i> Estoque
-        </a>
-        
-        <a href="/venda" class="nav-item {% if request.endpoint == 'venda' %}active{% endif %}">
-            <i class="fas fa-shopping-cart"></i> Nova Venda
-        </a>
-        
-        <a href="/movimentacoes" class="nav-item {% if request.endpoint == 'movimentacoes_page' %}active{% endif %}">
-            <i class="fas fa-exchange-alt"></i> Movimentações
-        </a>
-        
-        <div class="nav-group">
-            <span class="nav-group-title">Cadastros</span>
-            <a href="/registrar" class="nav-item {% if request.endpoint == 'registrar' %}active{% endif %}">
-                <i class="fas fa-box-open"></i> Cadastrar Produto
+            <a href="/" class="nav-item {% if request.endpoint == 'index' %}active{% endif %}">
+                <i class="fas fa-home"></i> Início
             </a>
-            <a href="/clientes/novo" class="nav-item {% if request.endpoint == 'novo_cliente' %}active{% endif %}">
-                <i class="fas fa-user-plus"></i> Cadastrar Cliente
+            
+            <a href="/estoque" class="nav-item {% if request.endpoint == 'estoque' %}active{% endif %}">
+                <i class="fas fa-box-open"></i> Estoque
             </a>
-        </div>
+            
+            <a href="/venda" class="nav-item {% if request.endpoint == 'venda' %}active{% endif %}">
+                <i class="fas fa-shopping-cart"></i> Nova Venda
+            </a>
+            
+            <a href="/movimentacoes" class="nav-item {% if request.endpoint == 'movimentacoes_page' %}active{% endif %}">
+                <i class="fas fa-exchange-alt"></i> Movimentações
+            </a>
+            
+            <div class="nav-group">
+                <span class="nav-group-title">Cadastros</span>
+                <a href="/registrar" class="nav-item {% if request.endpoint == 'registrar' %}active{% endif %}">
+                    <i class="fas fa-box-open"></i> Cadastrar Produto
+                </a>
+                <a href="/clientes/novo" class="nav-item {% if request.endpoint == 'novo_cliente' %}active{% endif %}">
+                    <i class="fas fa-user-plus"></i> Cadastrar Cliente
+                </a>
+            </div>
 
-        <div class="nav-group">
-            <span class="nav-group-title">Consultas</span>
-            <a href="/clientes" class="nav-item {% if request.endpoint == 'listar_clientes' %}active{% endif %}">
-                <i class="fas fa-users"></i> Clientes
-            </a>
-        </div>
-    </nav>
+            <div class="nav-group">
+                <span class="nav-group-title">Consultas</span>
+                <a href="/clientes" class="nav-item {% if request.endpoint == 'listar_clientes' %}active{% endif %}">
+                    <i class="fas fa-users"></i> Clientes
+                </a>
+            </div>
 
-    <div class="container">
-        {% block content %}{% endblock %}
+            <div class="nav-group">
+                <span class="nav-group-title">Compras</span>
+                <a href="/fornecedores" class="nav-item {% if request.endpoint == 'fornecedores_page' %}active{% endif %}">
+                    <i class="fas fa-truck"></i> Fornecedores
+                </a>
+                <a href="/compras" class="nav-item {% if request.endpoint == 'compras_page' %}active{% endif %}">
+                    <i class="fas fa-file-invoice"></i> Pedidos de Compra
+                </a>
+            </div>
+
+            <div class="nav-group">
+                <span class="nav-group-title">Financeiro</span>
+                <a href="/dashboard_financeiro" class="nav-item {% if request.endpoint == 'dashboard_financeiro' %}active{% endif %}">
+                    <i class="fas fa-chart-line"></i> Dashboard
+                </a>
+                <a href="/contas_pagar" class="nav-item {% if request.endpoint == 'contas_pagar_page' %}active{% endif %}">
+                    <i class="fas fa-money-bill-wave"></i> Contas a Pagar
+                </a>
+                <a href="/contas_receber" class="nav-item {% if request.endpoint == 'contas_receber_page' %}active{% endif %}">
+                    <i class="fas fa-hand-holding-usd"></i> Contas a Receber
+                </a>
+                <a href="/fluxo_caixa" class="nav-item {% if request.endpoint == 'fluxo_caixa_page' %}active{% endif %}">
+                    <i class="fas fa-cash-register"></i> Fluxo de Caixa
+                </a>
+            </div>
+
+            <div class="nav-group">
+                <span class="nav-group-title">Gestão</span>
+                <a href="/inventario" class="nav-item {% if request.endpoint == 'inventario_page' %}active{% endif %}">
+                    <i class="fas fa-clipboard-list"></i> Inventário
+                </a>
+                <a href="/relatorios" class="nav-item {% if request.endpoint == 'relatorios_page' %}active{% endif %}">
+                    <i class="fas fa-chart-bar"></i> Relatórios
+                </a>
+            </div>
+        </nav>
+
+        <main class="main-content">
+            {% block content %}{% endblock %}
+        </main>
     </div>
 
     {% block extra_js %}{% endblock %}

@@ -2,73 +2,155 @@
 
 {% block title %}Painel - Controle de Estoque{% endblock %}
 
-{% block extra_css %}
-<style>
-    /* small dashboard helpers */
-    .dash-grid{ display:grid; grid-template-columns:repeat(3,1fr); gap:16px }
-    @media(max-width:980px){ .dash-grid{ grid-template-columns:repeat(1,1fr) } }
-    .dash-card{ background:linear-gradient(180deg,#1d1b8dc0,#00000077); padding:18px; border-radius:12px; box-shadow:0 8px 30px rgba(0,0,0,0.06); display:flex; align-items:center; gap:12px }
-    .dash-card .icon{ width:56px; height:56px; border-radius:10px; display:flex; align-items:center; justify-content:center; font-size:22px }
-    .dash-card .meta{ flex:1 }
-    .dash-card h3{ margin:0; font-size:16px }
-    .dash-card p{ margin:6px 0 0; color:var(--muted) }
-    .recent-list li{ padding:8px 0; border-bottom:1px dashed #271c1c }
-</style>
-{% endblock %}
-
 {% block content %}
-<div class="header">
-    <img src="{{ url_for('static', filename='Images/Logo_tabacaria.png') }}" alt="Logo" class="logo">
-    <div>
+<div class="page-header">
+    <div class="page-title">
         <h1>Painel de Controle</h1>
-        <p class="muted">Acesso rápido às áreas principais e histórico recente</p>
+        <p>Acesso rápido às áreas principais e histórico recente</p>
     </div>
     <div class="header-actions">
-        <button class="btn btn-secondary" onclick="window.location.href='/'">Início</button>
-        <button class="btn btn-secondary" onclick="window.location.href='/registrar'">Registrar</button>
-        <button class="btn btn-secondary" onclick="window.location.href='/estoque'">Estoque</button>
-        <button class="btn btn-primary" onclick="window.location.href='/venda'">Nova Venda</button>
-        <button class="btn btn-secondary" onclick="window.location.href='/movimentacoes'">Movimentações</button>
+        <button class="btn btn-primary" onclick="window.location.href='/venda'">
+            <i class="fas fa-shopping-cart"></i> Nova Venda
+        </button>
     </div>
 </div>
 
-<div class="panel" style="margin-top:16px">
+<div class="panel">
     <h2>Visão Geral</h2>
     <div class="dash-grid">
-        <div class="dash-card" onclick="location.href='/estoque'" style="cursor:pointer">
-            <div class="icon" style="background:linear-gradient(90deg,var(--accent-1),var(--accent-2)); color:rgb(223, 214, 214)">
-                <i class="fa-solid fa-box-open"></i>
+        <div class="dash-card" onclick="location.href='/estoque'">
+            <div class="icon">
+                <i class="fas fa-box-open"></i>
             </div>
             <div class="meta">
-                <h3>Produtos</h3>
-                <p id="countProducts">Carregando...</p>
-            </div>
-        </div>
-
-        <div class="dash-card" onclick="location.href='/estoque'" style="cursor:pointer">
-            <div class="icon" style="background:#06b6d4; color:white"><i class="fa-solid fa-warehouse"></i></div>
-            <div class="meta">
-                <h3>Quantidade em Estoque</h3>
-                <p id="totalStock">Carregando...</p>
+                <h3>Produtos Cadastrados</h3>
+                <p id="countProducts">...</p>
             </div>
         </div>
 
-        <div class="dash-card" onclick="location.href='/movimentacoes'" style="cursor:pointer">
-            <div class="icon" style="background:#10b981; color:white"><i class="fa-solid fa-clock-rotate-left"></i></div>
+        <div class="dash-card" onclick="location.href='/estoque'">
+            <div class="icon">
+                <i class="fas fa-layer-group"></i>
+            </div>
             <div class="meta">
-                <h3>Movimentações Recentes</h3>
-                <p>Últimas ações registradas</p>
+                <h3>Total em Estoque</h3>
+                <p id="totalStock">...</p>
+            </div>
+        </div>
+
+        <div class="dash-card" onclick="location.href='/movimentacoes'">
+            <div class="icon">
+                <i class="fas fa-history"></i>
+            </div>
+            <div class="meta">
+                <h3>Movimentações</h3>
+                <p>Ver histórico</p>
             </div>
         </div>
     </div>
 </div>
 
-<div class="panel" style="margin-top:16px">
+<div class="panel">
+    <h2>Módulos ERP</h2>
+    <div class="dash-grid" style="grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));">
+        <div class="dash-card" onclick="location.href='/dashboard_financeiro'">
+            <div class="icon" style="background: rgba(239, 68, 68, 0.1); color: #ef4444;">
+                <i class="fas fa-chart-line"></i>
+            </div>
+            <div>
+                <h3>Dashboard Financeiro</h3>
+                <p style="font-size: 0.9rem; font-weight: 400;">KPIs e indicadores</p>
+            </div>
+        </div>
+
+        <div class="dash-card" onclick="location.href='/fornecedores'">
+            <div class="icon" style="background: rgba(239, 68, 68, 0.1); color: #ef4444;">
+                <i class="fas fa-truck"></i>
+            </div>
+            <div>
+                <h3>Fornecedores</h3>
+                <p style="font-size: 0.9rem; font-weight: 400;">Gestão de fornecedores</p>
+            </div>
+        </div>
+
+        <div class="dash-card" onclick="location.href='/compras'">
+            <div class="icon" style="background: rgba(239, 68, 68, 0.1); color: #ef4444;">
+                <i class="fas fa-file-invoice"></i>
+            </div>
+            <div>
+                <h3>Compras</h3>
+                <p style="font-size: 0.9rem; font-weight: 400;">Pedidos a fornecedores</p>
+            </div>
+        </div>
+
+        <div class="dash-card" onclick="location.href='/contas_pagar'">
+            <div class="icon" style="background: rgba(239, 68, 68, 0.1); color: #ef4444;">
+                <i class="fas fa-money-bill-wave"></i>
+            </div>
+            <div>
+                <h3>Contas a Pagar</h3>
+                <p style="font-size: 0.9rem; font-weight: 400;">Gestão de pagamentos</p>
+            </div>
+        </div>
+
+        <div class="dash-card" onclick="location.href='/contas_receber'">
+            <div class="icon" style="background: rgba(16, 185, 129, 0.1); color: #10b981;">
+                <i class="fas fa-hand-holding-usd"></i>
+            </div>
+            <div>
+                <h3>Contas a Receber</h3>
+                <p style="font-size: 0.9rem; font-weight: 400;">Controle de recebíveis</p>
+            </div>
+        </div>
+
+        <div class="dash-card" onclick="location.href='/fluxo_caixa'">
+            <div class="icon" style="background: rgba(59, 130, 246, 0.1); color: #3b82f6;">
+                <i class="fas fa-cash-register"></i>
+            </div>
+            <div>
+                <h3>Fluxo de Caixa</h3>
+                <p style="font-size: 0.9rem; font-weight: 400;">Entradas e saídas</p>
+            </div>
+        </div>
+
+        <div class="dash-card" onclick="location.href='/inventario'">
+            <div class="icon" style="background: rgba(59, 130, 246, 0.1); color: #3b82f6;">
+                <i class="fas fa-clipboard-list"></i>
+            </div>
+            <div>
+                <h3>Inventário</h3>
+                <p style="font-size: 0.9rem; font-weight: 400;">Contagem física</p>
+            </div>
+        </div>
+
+        <div class="dash-card" onclick="location.href='/relatorios'">
+            <div class="icon" style="background: rgba(59, 130, 246, 0.1); color: #3b82f6;">
+                <i class="fas fa-chart-bar"></i>
+            </div>
+            <div>
+                <h3>Relatórios</h3>
+                <p style="font-size: 0.9rem; font-weight: 400;">Análises e indicadores</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="panel">
     <h2>Últimas Movimentações</h2>
-    <ul class="recent-list" id="recentMoves">
-        <li>Carregando...</li>
-    </ul>
-    <div style="text-align:right; margin-top:12px">
+    <table id="recentMovesTable">
+        <thead>
+            <tr>
+                <th>Produto</th>
+                <th>Tipo</th>
+                <th>Qtd</th>
+                <th>Data</th>
+            </tr>
+        </thead>
+        <tbody id="recentMovesBody">
+            <tr><td colspan="4">Carregando...</td></tr>
+        </tbody>
+    </table>
+    <div style="text-align:right; margin-top:20px">
         <button class="btn btn-secondary" onclick="location.href='/movimentacoes'">Ver todas</button>
     </div>
 </div>
@@ -80,15 +162,27 @@
         try{
             const p = await fetch('/api/produtos');
             const produtos = p.ok? await p.json():[];
-            document.getElementById('countProducts').textContent = produtos.length + ' produtos';
+            document.getElementById('countProducts').textContent = produtos.length;
             const total = produtos.reduce((s,item)=> s + (parseInt(item.quantidade)||0), 0);
-            document.getElementById('totalStock').textContent = total + ' unidades';
+            document.getElementById('totalStock').textContent = total;
 
             const m = await fetch('/api/movimentacoes?limit=5');
             const moves = m.ok? await m.json():[];
-            const ul = document.getElementById('recentMoves');
-            if(!moves.length) { ul.innerHTML = '<li>Nenhuma movimentação recente</li>'; return }
-            ul.innerHTML = moves.map(mi=>`<li><strong>${mi.produto_nome||'?'}</strong> — ${mi.tipo} ${mi.quantidade} <span style="color:var(--muted);">(${mi.data_mov})</span></li>`).join('');
+            const tbody = document.getElementById('recentMovesBody');
+            
+            if(!moves.length) { 
+                tbody.innerHTML = '<tr><td colspan="4">Nenhuma movimentação recente</td></tr>'; 
+                return 
+            }
+            
+            tbody.innerHTML = moves.map(mi => `
+                <tr>
+                    <td>${mi.produto_nome||'?'}</td>
+                    <td><span class="badge badge-${mi.tipo === 'entrada' ? 'success' : 'danger'}">${mi.tipo}</span></td>
+                    <td>${mi.quantidade}</td>
+                    <td>${mi.data_mov}</td>
+                </tr>
+            `).join('');
         }catch(e){ console.error(e); }
     }
     fetchCounts();

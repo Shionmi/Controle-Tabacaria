@@ -210,12 +210,29 @@
             tbody.innerHTML = '';
             
             produtos.forEach(p => {
+                // Determine stock status class
+                let stockClass = 'status-high';
+                let stockLabel = 'Em Estoque';
+                
+                if (p.quantidade <= 5) {
+                    stockClass = 'status-low';
+                    stockLabel = 'Baixo';
+                } else if (p.quantidade <= 15) {
+                    stockClass = 'status-med';
+                    stockLabel = 'Médio';
+                }
+
                 tbody.innerHTML += `
                     <tr>
-                        <td><strong>${p.nome}</strong></td>
+                        <td>
+                            <div style="font-weight:600">${p.nome}</div>
+                            <div style="font-size:0.8rem; color:var(--text-muted)">${p.categoria || ''}</div>
+                        </td>
                         <td>${p.categoria || '-'}</td>
                         <td>R$ ${Number(p.preco).toFixed(2)}</td>
-                        <td><span class="badge" style="background: rgba(255,255,255,0.1)">${p.quantidade}</span></td>
+                        <td>
+                            <span class="status-badge ${stockClass}">${p.quantidade}</span>
+                        </td>
                         <td>${p.codigo_barras || '-'}</td>
                         <td>
                             <div style="display: flex; gap: 6px;">

@@ -1,20 +1,459 @@
 {% extends "base.html" %}
-{% block title %}Pedidos de Compra - Tabacaria{% endblock %}
+
+{% block title %}Compras - Tabacaria{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="https://cdn.datatables.net/1.13.5/css/jquery.dataTables.min.css">
+<style>
+    .dataTables_wrapper .dataTables_length, 
+    .dataTables_wrapper .dataTables_filter, 
+    .dataTables_wrapper .dataTables_info, 
+    .dataTables_wrapper .dataTables_processing, 
+    .dataTables_wrapper .dataTables_paginate {
+        color: var(--text-muted) !important;
+        margin-bottom: 16px;
+    }
+    .dataTables_wrapper .dataTables_filter input {
+        background: rgba(255,255,255,0.05);
+        border: 1px solid rgba(255,255,255,0.1);
+        color: var(--text-main);
+        border-radius: var(--radius-sm);
+        padding: 6px 12px;
+    }
+    table.dataTable tbody tr { background-color: transparent !important; }
+    table.dataTable tbody td { border-color: rgba(255,255,255,0.05) !important; }
+    
+    .purchase-layout {
+        display: grid;
+        grid-template-columns: 420px 1fr;
+        gap: 24px;
+        align-items: start;
+    }
+    @media (max-width: 1024px) {
+        .purchase-layout { grid-template-columns: 1fr; }
+    }
+    
+    .status-badge {
+        display: inline-block;
+        padding: 4px 12px;
+        border-radius: 12px;
+        font-size: 0.75rem;
+        font-weight: 600;
+        text-transform: uppercase;
+    }
+    .status-pendente { background: rgba(234, 179, 8, 0.2); color: #facc15; }
+    .status-recebida { background: rgba(34, 197, 94, 0.2); color: #4ade80; }
+    .status-parcial { background: rgba(59, 130, 246, 0.2); color: #60a5fa; }
+    .status-cancelada { background: rgba(239, 68, 68, 0.2); color: #ef4444; }
+    
+    #itemsContainer {
+        margin-top: 16px;
+    }
+    .item-row {
+        display: grid;
+        grid-template-columns: 2fr 1fr 1fr auto;
+        gap: 8px;
+        margin-bottom: 8px;
+        align-items: end;
+    }
+    .item-row select, .item-row input { margin: 0; }
+</style>
+{% endblock %}
+
 {% block content %}
 <div class="page-header">
     <div class="page-title">
-        <h1>Pedidos de Compra</h1>
-        <p>Gerenciamento de compras e pedidos a fornecedores</p>
+        <h1>Gerenciamento de Compras</h1>
+        <p>Pedidos de compra e controle de estoque</p>
     </div>
-    <button class="btn btn-primary" onclick="alert('Funcionalidade em desenvolvimento')">
-        <i class="fas fa-plus"></i> Nova Compra
-    </button>
 </div>
-<div class="panel">
-    <p style="text-align: center; padding: 60px 20px; color: var(--text-muted);">
-        <i class="fas fa-shopping-cart" style="font-size: 3rem; display: block; margin-bottom: 20px; opacity: 0.3;"></i>
-        Módulo de Compras em desenvolvimento.<br>
-        API backend já disponível em /api/compras
-    </p>
+
+<div class="purchase-layout">
+    <!-- New Purchase Form -->
+    <div class="panel">
+        <h2>Nova Compra</h2>
+        <form id="newPurchaseForm">
+            <div class="form-group">
+                <label>Fornecedor *</label>
+                <select id="newFornecedor" required>
+                    <option value="">Selecione...</option>
+                </select>
+            </div>
+            
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+                <div class="form-group">
+                    <label>Data da Compra</label>
+                    <input type="date" id="newDataCompra" required>
+                </div>
+                <div class="form-group">
+                    <label>Entrega Prevista</label>
+                    <input type="date" id="newDataPrevista">
+                </div>
+            </div>
+            
+            <div class="form-group">
+                <label>Nº do Pedido</label>
+                <input type="text" id="newNumeroPedido" placeholder="Ex: PED-001">
+            </div>
+            
+            <h3 style="margin-top: 24px; margin-bottom: 12px; font-size: 1rem;">Itens da Compra</h3>
+            <div id="itemsContainer">
+                <div class="item-row">
+                    <select class="item-produto" required>
+                        <option value="">Produto...</option>
+                    </select>
+                    <input type="number" class="item-quantidade" placeholder="Qtd" min="1" required>
+                    <input type="number" class="item-preco" placeholder="R$ Unit." step="0.01" min="0" required>
+                    <button type="button" class="btn btn-danger" onclick="removerItem(this)" title="Remover"><i class="fas fa-trash"></i></button>
+                </div>
+            </div>
+            <button type="button" class="btn btn-secondary" onclick="adicionarItem()" style="width: 100%; margin-top: 8px;">
+                <i class="fas fa-plus"></i> Adicionar Item
+            </button>
+            
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 16px;">
+                <div class="form-group">
+                    <label>Desconto (R$)</label>
+                    <input type="number" id="newDesconto" value="0" step="0.01" min="0">
+                </div>
+                <div class="form-group">
+                    <label>Frete (R$)</label>
+                    <input type="number" id="newFrete" value="0" step="0.01" min="0">
+                </div>
+            </div>
+            
+            <div class="form-group">
+                <label>Observações</label>
+                <textarea id="newObservacao" rows="2"></textarea>
+            </div>
+            
+            <button type="submit" class="btn btn-primary" style="width: 100%">
+                <i class="fas fa-shopping-cart"></i> Criar Pedido de Compra
+            </button>
+        </form>
+    </div>
+
+    <!-- Purchases Table -->
+    <div class="panel">
+        <h2>Pedidos de Compra</h2>
+        <div style="overflow-x:auto">
+            <table id="tabelaCompras" class="display" style="width:100%">
+                <thead>
+                    <tr>
+                        <th>Pedido</th>
+                        <th>Fornecedor</th>
+                        <th>Data</th>
+                        <th>Valor</th>
+                        <th>Status</th>
+                        <th>Ações</th>
+                    </tr>
+                </thead>
+                <tbody id="tabela">
+                </tbody>
+            </table>
+        </div>
+    </div>
 </div>
+
+<!-- Receive Modal -->
+<div class="modal" id="modal-receber">
+    <div class="modal-content">
+        <h3>Receber Pedido</h3>
+        <div id="receive-content"></div>
+        <div style="text-align: right; margin-top: 24px; display: flex; justify-content: flex-end; gap: 12px;">
+            <button type="button" class="btn btn-secondary" onclick="fecharModalReceber()">Cancelar</button>
+            <button type="button" class="btn btn-primary" onclick="confirmarRecebimento()">Confirmar Recebimento</button>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script src="https://cdn.datatables.net/1.13.5/js/jquery.dataTables.min.js"></script>
+<script>
+    let tabelaDT;
+    let fornecedores = [];
+    let produtos = [];
+    let compraAtualReceber = null;
+
+    async function init() {
+        try {
+            const [resFornecedores, resProdutos] = await Promise.all([
+                fetch('/api/fornecedores'),
+                fetch('/api/produtos')
+            ]);
+            
+            fornecedores = await resFornecedores.json();
+            produtos = await resProdutos.json();
+            
+            popularFornecedores();
+            popularProdutos();
+            carregarCompras();
+            
+            // Set today's date
+            document.getElementById('newDataCompra').valueAsDate = new Date();
+        } catch (err) {
+            console.error('Erro ao inicializar:', err);
+        }
+    }
+
+    function popularFornecedores() {
+        const select = document.getElementById('newFornecedor');
+        fornecedores.forEach(f => {
+            select.innerHTML += `<option value="${f.id_fornecedor}">${f.nome_fantasia}</option>`;
+        });
+    }
+
+    function popularProdutos() {
+        const selects = document.querySelectorAll('.item-produto');
+        const options = produtos.map(p => 
+            `<option value="${p.id_produto}" data-preco="${p.preco_venda}">${p.nome}</option>`
+        ).join('');
+        
+        selects.forEach(s => s.innerHTML = '<option value="">Produto...</option>' + options);
+    }
+
+    function adicionarItem() {
+        const container = document.getElementById('itemsContainer');
+        const newRow = document.createElement('div');
+        newRow.className = 'item-row';
+        newRow.innerHTML = `
+            <select class="item-produto" required>
+                <option value="">Produto...</option>
+                ${produtos.map(p => `<option value="${p.id_produto}" data-preco="${p.preco_venda}">${p.nome}</option>`).join('')}
+            </select>
+            <input type="number" class="item-quantidade" placeholder="Qtd" min="1" required>
+            <input type="number" class="item-preco" placeholder="R$ Unit." step="0.01" min="0" required>
+            <button type="button" class="btn btn-danger" onclick="removerItem(this)" title="Remover"><i class="fas fa-trash"></i></button>
+        `;
+        container.appendChild(newRow);
+        
+        // Auto-fill price when product selected
+        newRow.querySelector('.item-produto').addEventListener('change', function() {
+            const preco = this.selectedOptions[0]?.dataset?.preco;
+            if (preco) {
+                newRow.querySelector('.item-preco').value = preco;
+            }
+        });
+    }
+
+    function removerItem(btn) {
+        const rows = document.querySelectorAll('.item-row');
+        if (rows.length > 1) {
+            btn.closest('.item-row').remove();
+        } else {
+            alert('Deve haver pelo menos um item');
+        }
+    }
+
+    // Auto-fill price on product selection
+    document.addEventListener('change', function(e) {
+        if (e.target.classList.contains('item-produto')) {
+            const preco = e.target.selectedOptions[0]?.dataset?.preco;
+            if (preco) {
+                e.target.closest('.item-row').querySelector('.item-preco').value = preco;
+            }
+        }
+    });
+
+    document.getElementById('newPurchaseForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        
+        const itemRows = document.querySelectorAll('.item-row');
+        const items = [];
+        
+        itemRows.forEach(row => {
+            const produtoSelect = row.querySelector('.item-produto');
+            const quantidade = parseFloat(row.querySelector('.item-quantidade').value);
+            const preco = parseFloat(row.querySelector('.item-preco').value);
+            
+            if (produtoSelect.value && quantidade && preco) {
+                items.push({
+                    id_produto: parseInt(produtoSelect.value),
+                    quantidade: quantidade,
+                    preco_unitario: preco,
+                    desconto_item: 0
+                });
+            }
+        });
+        
+        if (items.length === 0) {
+            alert('Adicione pelo menos um item à compra');
+            return;
+        }
+        
+        const dados = {
+            id_fornecedor: parseInt(document.getElementById('newFornecedor').value),
+            numero_pedido: document.getElementById('newNumeroPedido').value,
+            data_compra: document.getElementById('newDataCompra').value,
+            data_entrega_prevista: document.getElementById('newDataPrevista').value,
+            desconto: parseFloat(document.getElementById('newDesconto').value) || 0,
+            valor_frete: parseFloat(document.getElementById('newFrete').value) || 0,
+            observacao: document.getElementById('newObservacao').value,
+            items: items
+        };
+
+        try {
+            const res = await fetch('/api/compras', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(dados)
+            });
+
+            if (res.ok) {
+                alert('Pedido de compra criado com sucesso!');
+                e.target.reset();
+                document.getElementById('newDataCompra').valueAsDate = new Date();
+                
+                // Reset items
+                const container = document.getElementById('itemsContainer');
+                container.innerHTML = `
+                    <div class="item-row">
+                        <select class="item-produto" required>
+                            <option value="">Produto...</option>
+                            ${produtos.map(p => `<option value="${p.id_produto}" data-preco="${p.preco_venda}">${p.nome}</option>`).join('')}
+                        </select>
+                        <input type="number" class="item-quantidade" placeholder="Qtd" min="1" required>
+                        <input type="number" class="item-preco" placeholder="R$ Unit." step="0.01" min="0" required>
+                        <button type="button" class="btn btn-danger" onclick="removerItem(this)" title="Remover"><i class="fas fa-trash"></i></button>
+                    </div>
+                `;
+                
+                carregarCompras();
+            } else {
+                const err = await res.json();
+                alert('Erro ao criar pedido: ' + (err.erro || 'desconhecido'));
+            }
+        } catch (err) {
+            console.error(err);
+            alert('Erro de conexão');
+        }
+    });
+
+    async function carregarCompras() {
+        try {
+            const res = await fetch('/api/compras');
+            if (!res.ok) throw new Error('Erro ao carregar compras');
+            const compras = await res.json();
+
+            if ($.fn.DataTable.isDataTable('#tabelaCompras')) {
+                $('#tabelaCompras').DataTable().destroy();
+            }
+    
+            const tbody = document.getElementById('tabela');
+            tbody.innerHTML = '';
+    
+            compras.forEach(c => {
+                const statusClass = `status-${c.status}`;
+                const statusText = c.status === 'pendente' ? 'Pendente' : 
+                                 c.status === 'recebida' ? 'Recebida' : 
+                                 c.status === 'parcial' ? 'Parcial' : 'Cancelada';
+                
+                const dataCompra = c.data_compra ? new Date(c.data_compra).toLocaleDateString('pt-BR') : '-';
+                
+                tbody.innerHTML += `
+                    <tr>
+                        <td>
+                            <div style="font-weight: 600;">${c.numero_pedido || `#${c.id_compra}`}</div>
+                            <div style="font-size: 0.8rem; color: var(--text-muted);">ID: ${c.id_compra}</div>
+                        </td>
+                        <td>${c.fornecedor_nome || '-'}</td>
+                        <td>${dataCompra}</td>
+                        <td>R$ ${(c.valor_final || 0).toFixed(2)}</td>
+                        <td><span class="status-badge ${statusClass}">${statusText}</span></td>
+                        <td>
+                            <div style="display: flex; gap: 8px;">
+                                ${c.status === 'pendente' || c.status === 'parcial' ? 
+                                    `<button class="btn btn-primary" style="padding: 6px 10px;" onclick="receberCompra(${c.id_compra})" title="Receber"><i class="fas fa-box-open"></i></button>` : 
+                                    ''}
+                                <button class="btn btn-danger" style="padding: 6px 10px;" onclick="cancelarCompra(${c.id_compra})" title="Cancelar"><i class="fas fa-times"></i></button>
+                            </div>
+                        </td>
+                    </tr>
+                `;
+            });
+
+            tabelaDT = $('#tabelaCompras').DataTable({
+                language: { url: '//cdn.datatables.net/plug-ins/1.13.5/i18n/pt-BR.json' },
+                pageLength: 10,
+                order: [[2, 'desc']]
+            });
+    
+        } catch (err) {
+            console.error(err);
+            document.getElementById('tabela').innerHTML = 
+                '<tr><td colspan="6" style="text-align:center;color:var(--accent-primary)">Erro ao carregar compras</td></tr>';
+        }
+    }
+
+    async function receberCompra(id) {
+        // Simplified: receive all items in full
+        try {
+            const res = await fetch(`/api/compras/${id}`);
+            if (!res.ok) throw new Error('Compra não encontrada');
+            
+            const compra = await res.json();
+            
+            // Get items from compra_items
+            const resItems = await fetch(`/api/compras/${id}/items`);
+            let items = [];
+            if (resItems.ok) {
+                items = await resItems.json();
+            }
+            
+            // For now, auto-receive all items (simplified)
+            if (confirm(`Confirmar recebimento completo do pedido #${compra.numero_pedido || id}?`)) {
+                const itemsReceber = items.map(item => ({
+                    id_item: item.id_item,
+                    quantidade_recebida: item.quantidade - (item.recebido || 0)
+                }));
+                
+                const resReceber = await fetch(`/api/compras/${id}/receber`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ items: itemsReceber })
+                });
+                
+                if (resReceber.ok) {
+                    alert('Compra recebida com sucesso! Estoque atualizado.');
+                    carregarCompras();
+                } else {
+                    alert('Erro ao receber compra');
+                }
+            }
+        } catch (err) {
+            console.error(err);
+            alert('Erro ao processar recebimento');
+        }
+    }
+
+    async function cancelarCompra(id) {
+        if (confirm('Tem certeza que deseja cancelar este pedido?')) {
+            try {
+                const res = await fetch(`/api/compras/${id}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ status: 'cancelada' })
+                });
+                
+                if (res.ok) {
+                    alert('Pedido cancelado');
+                    carregarCompras();
+                } else {
+                    alert('Erro ao cancelar pedido');
+                }
+            } catch (err) {
+                console.error(err);
+                alert('Erro de conexão');
+            }
+        }
+    }
+    
+    function fecharModalReceber() {
+        document.getElementById('modal-receber').classList.remove('active');
+    }
+    
+    document.addEventListener('DOMContentLoaded', init);
+</script>
 {% endblock %}

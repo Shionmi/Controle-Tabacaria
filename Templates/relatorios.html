@@ -2,6 +2,70 @@
 
 {% block title %}Relatórios - Tabacaria{% endblock %}
 
+{% block extra_css %}
+<link rel="stylesheet" href="https://cdn.datatables.net/1.13.5/css/jquery.dataTables.min.css">
+<style>
+    /* Custom overrides for DataTables to match theme */
+    .dataTables_wrapper .dataTables_length, 
+    .dataTables_wrapper .dataTables_filter, 
+    .dataTables_wrapper .dataTables_info, 
+    .dataTables_wrapper .dataTables_processing, 
+    .dataTables_wrapper .dataTables_paginate {
+        color: var(--text-muted) !important;
+        margin-bottom: 16px;
+    }
+    .dataTables_wrapper .dataTables_filter input {
+        background: rgba(255,255,255,0.05);
+        border: 1px solid rgba(255,255,255,0.1);
+        color: var(--text-main);
+        border-radius: var(--radius-sm);
+        padding: 6px 12px;
+    }
+    table.dataTable tbody tr { background-color: transparent !important; }
+    table.dataTable tbody td { border-color: rgba(255,255,255,0.05) !important; }
+
+    .dash-grid {
+        display: grid;
+        gap: 24px;
+        margin-bottom: 32px;
+    }
+    
+    .dash-card {
+        background: var(--bg-card);
+        border: 1px solid rgba(255,255,255,0.05);
+        border-radius: var(--radius-md);
+        padding: 24px;
+        display: flex;
+        align-items: center;
+        gap: 20px;
+        cursor: pointer;
+        transition: all 0.2s;
+    }
+    
+    .dash-card:hover {
+        transform: translateY(-4px);
+        border-color: var(--accent-primary);
+        box-shadow: var(--shadow-md);
+    }
+    
+    .dash-card .icon {
+        width: 56px;
+        height: 56px;
+        border-radius: 16px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.5rem;
+    }
+    
+    .dash-card h3 {
+        font-size: 1.1rem;
+        margin-bottom: 4px;
+        color: var(--text-main);
+    }
+</style>
+{% endblock %}
+
 {% block content %}
 <div class="page-header">
     <div class="page-title">
@@ -54,7 +118,11 @@
 {% endblock %}
 
 {% block extra_js %}
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script src="https://cdn.datatables.net/1.13.5/js/jquery.dataTables.min.js"></script>
 <script>
+let tabelaRelatorio = null;
+
 async function visualizarRelatorio(tipo) {
     const area = document.getElementById('areaRelatorio');
     const titulo = document.getElementById('tituloRelatorio');
@@ -86,6 +154,20 @@ async function visualizarRelatorio(tipo) {
     }
 }
 
+function initDataTable() {
+    if ($.fn.DataTable.isDataTable('#tabelaRelatorio')) {
+        $('#tabelaRelatorio').DataTable().destroy();
+    }
+    
+    tabelaRelatorio = $('#tabelaRelatorio').DataTable({
+        language: { url: '//cdn.datatables.net/plug-ins/1.13.5/i18n/pt-BR.json' },
+        pageLength: 25,
+        lengthMenu: [[10, 25, 50, -1], [10, 25, 50, "Todos"]],
+        dom: 'Bfrtip',
+        buttons: ['copy', 'csv', 'excel', 'pdf', 'print']
+    });
+}
+
 function renderizarCurvaABC(dados) {
     const conteudo = document.getElementById('conteudoRelatorio');
     
@@ -94,7 +176,7 @@ function renderizarCurvaABC(dados) {
         return;
     }
     
-    let html = '<table><thead><tr><th>Produto</th><th>Qtd</th><th>Valor Estoque</th><th>%</th><th>% Acum.</th><th>Classe</th></tr></thead><tbody>';
+    let html = '<table id="tabelaRelatorio" class="display" style="width:100%"><thead><tr><th>Produto</th><th>Qtd</th><th>Valor Estoque</th><th>%</th><th>% Acum.</th><th>Classe</th></tr></thead><tbody>';
     
     dados.forEach(p => {
         const classeColor = p.classe === 'A' ? '#10b981' : p.classe === 'B' ? '#3b82f6' : '#ef4444';
@@ -112,6 +194,7 @@ function renderizarCurvaABC(dados) {
     
     html += '</tbody></table>';
     conteudo.innerHTML = html;
+    initDataTable();
 }
 
 function renderizarLucratividade(dados) {
@@ -122,7 +205,7 @@ function renderizarLucratividade(dados) {
         return;
     }
     
-    let html = '<table><thead><tr><th>Produto</th><th>Vendas</th><th>Qtd Vendida</th><th>Preço Médio</th><th>Receita Total</th></tr></thead><tbody>';
+    let html = '<table id="tabelaRelatorio" class="display" style="width:100%"><thead><tr><th>Produto</th><th>Vendas</th><th>Qtd Vendida</th><th>Preço Médio</th><th>Receita Total</th></tr></thead><tbody>';
     
     dados.forEach(p => {
         html += `
@@ -138,12 +221,13 @@ function renderizarLucratividade(dados) {
     
     html += '</tbody></table>';
     conteudo.innerHTML = html;
+    initDataTable();
 }
 
 function renderizarEstoqueValorizado(dados) {
     const conteudo = document.getElementById('conteudoRelatorio');
     
-    let html = '<table><thead><tr><th>Categoria</th><th>Produtos</th><th>Qtd Total</th><th>Preço Médio</th><th>Valor Total</th></tr></thead><tbody>';
+    let html = '<table id="tabelaRelatorio" class="display" style="width:100%"><thead><tr><th>Categoria</th><th>Produtos</th><th>Qtd Total</th><th>Preço Médio</th><th>Valor Total</th></tr></thead><tbody>';
     
     dados.por_categoria.forEach(c => {
         html += `
@@ -157,6 +241,7 @@ function renderizarEstoqueValorizado(dados) {
         `;
     });
     
+    html += '</tbody><tfoot>';
     html += `
         <tr style="border-top: 2px solid var(--accent-gold); font-weight: 700;">
             <td>TOTAL GERAL</td>
@@ -167,8 +252,9 @@ function renderizarEstoqueValorizado(dados) {
         </tr>
     `;
     
-    html += '</tbody></table>';
+    html += '</tfoot></table>';
     conteudo.innerHTML = html;
+    initDataTable();
 }
 
 function fecharRelatorio() {

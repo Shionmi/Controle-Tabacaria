@@ -1,0 +1,24 @@
+# JM Tabacaria - Arquivos do Sistema
+*.db
+*.db-journal
+.venv/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+*.so
+*.egg
+*.egg-info/
+dist/
+build/
+.env
+.vscode/
+.idea/
+*.log
+.ngrok_token
+static/barcodes/*.png
+static/barcodes/*.jpg
+estoque_tabacaria.db.bak
+*.bak
+e --continue

@@ -2,6 +2,66 @@
 
 {% block title %}Dashboard Financeiro - Tabacaria{% endblock %}
 
+{% block extra_css %}
+<style>
+    .dashboard-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+        gap: 24px;
+        margin-bottom: 32px;
+    }
+
+    .stat-card {
+        background: var(--bg-card);
+        border: 1px solid rgba(255,255,255,0.05);
+        border-radius: var(--radius-md);
+        padding: 24px;
+        display: flex;
+        align-items: center;
+        gap: 20px;
+        transition: all 0.2s;
+    }
+
+    .stat-card:hover {
+        transform: translateY(-4px);
+        box-shadow: var(--shadow-md);
+        border-color: var(--accent-primary);
+    }
+
+    .stat-icon {
+        width: 56px;
+        height: 56px;
+        border-radius: 12px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.5rem;
+        background: rgba(255,255,255,0.05);
+        color: var(--text-muted);
+    }
+
+    .stat-info h3 {
+        font-size: 0.9rem;
+        color: var(--text-muted);
+        margin-bottom: 4px;
+        font-weight: 500;
+    }
+
+    .stat-info p {
+        font-size: 1.5rem;
+        font-weight: 700;
+        color: var(--text-main);
+        line-height: 1;
+        margin-bottom: 4px;
+    }
+
+    .stat-info small {
+        font-size: 0.8rem;
+        color: var(--text-muted);
+    }
+</style>
+{% endblock %}
+
 {% block content %}
 <div class="page-header">
     <div class="page-title">
@@ -11,48 +71,48 @@
 </div>
 
 <!-- KPIs Cards -->
-<div class="dash-grid" style="grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));">
-    <div class="dash-card" style="background: linear-gradient(145deg, #1e293b, #0f172a);">
-        <div class="icon" style="background: rgba(239, 68, 68, 0.1); color: #ef4444;">
+<div class="dashboard-grid">
+    <div class="stat-card">
+        <div class="stat-icon" style="background: rgba(239, 68, 68, 0.1); color: #ef4444;">
             <i class="fas fa-money-bill-wave"></i>
         </div>
-        <div>
+        <div class="stat-info">
             <h3>Contas a Pagar</h3>
             <p id="kpi-contas-pagar">R$ 0,00</p>
-            <small id="kpi-contas-pagar-qtd" style="color: var(--text-muted);">0 pendentes</small>
+            <small id="kpi-contas-pagar-qtd">0 pendentes</small>
         </div>
     </div>
 
-    <div class="dash-card" style="background: linear-gradient(145deg, #1e293b, #0f172a);">
-        <div class="icon" style="background: rgba(16, 185, 129, 0.1); color: #10b981;">
+    <div class="stat-card">
+        <div class="stat-icon" style="background: rgba(16, 185, 129, 0.1); color: #10b981;">
             <i class="fas fa-hand-holding-usd"></i>
         </div>
-        <div>
+        <div class="stat-info">
             <h3>Contas a Receber</h3>
             <p id="kpi-contas-receber">R$ 0,00</p>
-            <small id="kpi-contas-receber-qtd" style="color: var(--text-muted);">0 pendentes</small>
+            <small id="kpi-contas-receber-qtd">0 pendentes</small>
         </div>
     </div>
 
-    <div class="dash-card" style="background: linear-gradient(145deg, #1e293b, #0f172a);">
-        <div class="icon" style="background: rgba(239, 68, 68, 0.1); color: #ef4444;">
+    <div class="stat-card">
+        <div class="stat-icon" style="background: rgba(245, 158, 11, 0.1); color: #f59e0b;">
             <i class="fas fa-exclamation-triangle"></i>
         </div>
-        <div>
+        <div class="stat-info">
             <h3>Contas Vencidas</h3>
             <p id="kpi-vencidas-total">R$ 0,00</p>
-            <small id="kpi-vencidas-qtd" style="color: var(--text-muted);">0 vencidas</small>
+            <small id="kpi-vencidas-qtd">0 vencidas</small>
         </div>
     </div>
 
-    <div class="dash-card" style="background: linear-gradient(145deg, #1e293b, #0f172a);">
-        <div class="icon" style="background: rgba(59, 130, 246, 0.1); color: #3b82f6;">
+    <div class="stat-card">
+        <div class="stat-icon" style="background: rgba(59, 130, 246, 0.1); color: #3b82f6;">
             <i class="fas fa-box"></i>
         </div>
-        <div>
+        <div class="stat-info">
             <h3>Valor em Estoque</h3>
-            <p id="kpi-valor-estoque">R$ 0,00</p>
-            <small id="kpi-produtos-baixo" style="color: var(--text-muted);">0 produtos baixos</small>
+            <p id="kpi-estoque-valor">R$ 0,00</p>
+            <small id="kpi-produtos-baixo">0 produtos baixos</small>
         </div>
     </div>
 </div>
@@ -122,7 +182,7 @@ async function carregarKPIs() {
         document.getElementById('kpi-vencidas-qtd').textContent = `${qtdVencidas} vencidas`;
         
         // Valor estoque
-        document.getElementById('kpi-valor-estoque').textContent = formatarMoeda(data.valor_estoque);
+        document.getElementById('kpi-estoque-valor').textContent = formatarMoeda(data.valor_estoque);
         document.getElementById('kpi-produtos-baixo').textContent = `${data.produtos_baixo_estoque} produtos baixos`;
         
         // Fluxo do mês

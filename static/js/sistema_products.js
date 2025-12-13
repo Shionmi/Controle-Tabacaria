@@ -80,9 +80,25 @@ function renderFilteredProducts(productsToRender) {
         return;
     }
 
-    container.innerHTML = productsToRender.map(p => `
+    container.innerHTML = productsToRender.map(p => {
+        // Determine stock status class
+        let stockClass = 'status-high';
+        let stockLabel = 'Em Estoque';
+        
+        if (p.quantity <= 5) {
+            stockClass = 'status-low';
+            stockLabel = 'Baixo Estoque';
+        } else if (p.quantity <= 15) {
+            stockClass = 'status-med';
+            stockLabel = 'Atenção';
+        }
+
+        return `
         <div class="product-card">
-            <h3>${p.name}</h3>
+            <div style="display:flex; justify-content:space-between; align-items:start; margin-bottom:12px;">
+                <h3>${p.name}</h3>
+                <span class="status-badge ${stockClass}">${stockLabel}</span>
+            </div>
             <div class="product-info">
                 <div><strong>Preço:</strong> R$ ${p.price.toFixed(2)}</div>
                 <div><strong>Quantidade:</strong> ${p.quantity} ${p.unit}</div>
@@ -95,7 +111,7 @@ function renderFilteredProducts(productsToRender) {
                 <button class="btn-danger" onclick="deleteProduct(${p.id})">🗑️ Remover</button>
             </div>
         </div>
-    `).join('');
+    `}).join('');
 }
 
 function openBarcodeModal(productId) {

@@ -8,8 +8,115 @@ from reportlab.pdfgen import canvas
 from reportlab.lib.pagesizes import mm
 from reportlab.lib.units import mm
 import io
+import socket
+from pyngrok import ngrok
+import atexit
+from colorama import init, Fore, Back, Style
+import sys
+import logging
+
+# Inicializar colorama para Windows
+init(autoreset=True)
+
+# Suprimir logs verbosos do ngrok e do pyngrok
+logging.getLogger('pyngrok').setLevel(logging.CRITICAL)
+logging.getLogger('pyngrok.ngrok').setLevel(logging.CRITICAL)
+os.environ['NGROK_LOG_LEVEL'] = 'critical'
+os.environ['NGROK_LOG'] = 'false'
+
+# Variável de controle para executar setup apenas uma vez
+_ngrok_initialized = False
 
 app = Flask(__name__)
+
+# Variável global para armazenar a URL pública
+public_url = None
+
+def get_local_ip():
+    try:
+        # Tenta conectar a um DNS público para descobrir qual interface tem internet
+        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        s.connect(("8.8.8.8", 80))
+        ip = s.getsockname()[0]
+        s.close()
+        return ip
+    except:
+        return "127.0.0.1"
+
+def print_banner():
+    """Exibe banner amigável e colorido"""
+    print(f"\n{Fore.CYAN}{Style.BRIGHT}" + "═" * 70)
+    print(f"{Fore.YELLOW}{Style.BRIGHT}                    🏪 JM TABACARIA - SISTEMA ATIVO 🏪")
+    print(f"{Fore.CYAN}{Style.BRIGHT}" + "═" * 70 + Style.RESET_ALL)
+
+def setup_ngrok():
+    global public_url, _ngrok_initialized
+    
+    # Evitar múltiplas inicializações (debug mode do Flask reinicia o processo)
+    if _ngrok_initialized:
+        return
+    
+    _ngrok_initialized = True
+    
+    try:
+        # Verificar se há túneis ativos
+        existing_tunnels = ngrok.get_tunnels()
+        if existing_tunnels:
+            print(f"\n{Fore.YELLOW}⚠️  Detectado túnel ngrok já ativo!{Style.RESET_ALL}")
+            print(f"{Fore.GREEN}✓ Reutilizando túnel existente...{Style.RESET_ALL}")
+            public_url = existing_tunnels[0].public_url
+            print(f"\n{Fore.CYAN}{Style.BRIGHT}" + "═" * 70 + f"{Style.RESET_ALL}")
+            print(f"{Fore.GREEN}{Style.BRIGHT}              🌍 ACESSO PÚBLICO ATIVADO! 🌍{Style.RESET_ALL}")
+            print(f"{Fore.CYAN}{Style.BRIGHT}" + "═" * 70 + f"{Style.RESET_ALL}")
+            print(f"\n{Fore.WHITE}{Style.BRIGHT}  ✅ Acesse de QUALQUER LUGAR (celular, tablet, etc):{Style.RESET_ALL}")
+            print(f"\n{Fore.YELLOW}{Style.BRIGHT}     → {public_url}{Style.RESET_ALL}")
+            print(f"\n{Fore.MAGENTA}  💡 Compartilhe este link com quem precisar acessar!{Style.RESET_ALL}")
+            print(f"\n{Fore.CYAN}{Style.BRIGHT}" + "═" * 70 + f"{Style.RESET_ALL}\n")
+            return
+        
+        # Criar novo túnel público na porta 5000
+        print(f"\n{Fore.CYAN}🔄 Criando túnel público...{Style.RESET_ALL}")
+        tunnel = ngrok.connect(5000, bind_tls=True)
+        public_url = tunnel.public_url
+        
+        print(f"\n{Fore.CYAN}{Style.BRIGHT}" + "═" * 70 + f"{Style.RESET_ALL}")
+        print(f"{Fore.GREEN}{Style.BRIGHT}              🌍 ACESSO PÚBLICO ATIVADO! 🌍{Style.RESET_ALL}")
+        print(f"{Fore.CYAN}{Style.BRIGHT}" + "═" * 70 + f"{Style.RESET_ALL}")
+        print(f"\n{Fore.WHITE}{Style.BRIGHT}  ✅ Acesse de QUALQUER LUGAR (celular, tablet, etc):{Style.RESET_ALL}")
+        print(f"\n{Fore.YELLOW}{Style.BRIGHT}     → {public_url}{Style.RESET_ALL}")
+        print(f"\n{Fore.MAGENTA}  💡 Compartilhe este link com quem precisar acessar!{Style.RESET_ALL}")
+        print(f"\n{Fore.CYAN}{Style.BRIGHT}" + "═" * 70 + f"{Style.RESET_ALL}\n")
+        
+        # Fechar túnel ao encerrar
+        atexit.register(ngrok.kill)
+        
+    except Exception as e:
+        error_msg = str(e).lower()
+        
+        # Tratamento específico para erro de limite de sessões
+        if 'limited to' in error_msg and 'simultaneous' in error_msg:
+            print(f"\n{Fore.RED}{Style.BRIGHT}" + "═" * 70 + f"{Style.RESET_ALL}")
+            print(f"{Fore.YELLOW}  ⚠️  LIMITE DE SESSÕES NGROK ATINGIDO{Style.RESET_ALL}")
+            print(f"{Fore.RED}{Style.BRIGHT}" + "═" * 70 + f"{Style.RESET_ALL}")
+            print(f"\n{Fore.WHITE}  Você já tem 3 sessões ngrok abertas.{Style.RESET_ALL}")
+            print(f"\n{Fore.CYAN}  💡 Soluções:{Style.RESET_ALL}")
+            print(f"  {Fore.GREEN}1.{Style.RESET_ALL} Feche outras sessões em: {Fore.YELLOW}https://dashboard.ngrok.com/agents{Style.RESET_ALL}")
+            print(f"  {Fore.GREEN}2.{Style.RESET_ALL} Use o acesso local na sua rede Wi-Fi")
+            print(f"\n{Fore.MAGENTA}  → O sistema funcionará normalmente na rede local!{Style.RESET_ALL}")
+            print(f"\n{Fore.RED}{Style.BRIGHT}" + "═" * 70 + f"{Style.RESET_ALL}\n")
+        
+        # Tratamento para endpoint já em uso
+        elif 'already online' in error_msg:
+            print(f"\n{Fore.YELLOW}⚠️  Túnel ngrok já está ativo em outra janela!{Style.RESET_ALL}")
+            print(f"{Fore.CYAN}💡 Feche as outras janelas do sistema ou use o túnel existente.{Style.RESET_ALL}\n")
+        
+        # Outros erros
+        else:
+            print(f"\n{Fore.YELLOW}⚠️  Não foi possível criar túnel público{Style.RESET_ALL}")
+            print(f"{Fore.WHITE}   Detalhes: {str(e)[:100]}...{Style.RESET_ALL}\n")
+        
+        print(f"{Fore.GREEN}✓ Sistema funcionará na rede local!{Style.RESET_ALL}\n")
+        public_url = None
 
 @app.route('/imprimir_etiqueta/<int:id_produto>')
 def imprimir_etiqueta(id_produto):
@@ -233,12 +340,16 @@ def get_db():
 # ===== Página inicial =====
 @app.route('/')
 def index():
-    return render_template('index.html')
+    mobile_ip = get_local_ip()
+    # Usar URL pública se disponível, senão IP local
+    display_url = public_url if public_url else f"http://{mobile_ip}:5000"
+    return render_template('index.html', mobile_ip=mobile_ip, public_url=display_url)
 
-# ===== Página de registrar produtos =====
+# ===== Página de registrar produtos (Redirecionado para Estoque) =====
 @app.route('/registrar')
 def registrar():
-    return render_template('registrar.html')
+    from flask import redirect, url_for
+    return redirect(url_for('estoque'))
 
 # ===== Página de clientes =====
 @app.route('/clientes')
@@ -249,6 +360,10 @@ def clientes():
 @app.route('/venda')
 def venda():
     return render_template('venda.html')
+
+@app.route('/estornar_venda')
+def estornar_venda_page():
+    return render_template('estornar_venda.html')
 
 # ===== Página de estoque =====
 @app.route('/estoque')
@@ -387,43 +502,6 @@ def listar_produtos():
     produtos = [dict(row) for row in cur.fetchall()]
     conn.close()
     return jsonify(produtos)
-
-# ===== Rota para registrar cliente =====
-@app.route('/api/clientes', methods=['POST'])
-def registrar_cliente():
-    try:
-        data = request.json
-        nome = data.get('nome', '').strip()
-        cpf = data.get('cpf', '').strip()
-        telefone = data.get('telefone', '').strip()
-        email = data.get('email', '').strip()
-        endereco = data.get('endereco', '').strip()
-        cidade = data.get('cidade', '').strip()
-        estado = data.get('estado', '').strip()
-        observacoes = data.get('observacoes', '').strip()
-
-        if not nome:
-            return jsonify({"erro": "O nome do cliente é obrigatório."}), 400
-
-        conn = get_db()
-        cur = conn.cursor()
-        cur.execute("""
-            INSERT INTO clientes (nome, cpf, telefone, email, endereco, cidade, estado, observacoes)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-        """, (nome, cpf, telefone, email, endereco, cidade, estado, observacoes))
-        conn.commit()
-        cliente_id = cur.lastrowid
-
-        return jsonify({
-            "mensagem": "Cliente registrado com sucesso!",
-            "id_cliente": cliente_id
-        })
-
-    except sqlite3.IntegrityError:
-        return jsonify({"erro": "CPF já cadastrado."}), 400
-    finally:
-        conn.close()
-
 
 # ===== API para adicionar produto =====
 @app.route('/api/produtos', methods=['POST'])
@@ -595,7 +673,8 @@ def deletar_produto(id_produto):
 @app.route('/registrar_cliente')
 @app.route('/clientes/novo')
 def pagina_registrar_cliente():
-    return render_template('registrar_cliente.html')
+    from flask import redirect, url_for
+    return redirect(url_for('clientes'))
 
 
 @app.route('/api/generate_barcode/<int:id_produto>', methods=['GET'])
@@ -813,6 +892,17 @@ def criar_venda():
                 cur2.execute('ALTER TABLE vendas ADD COLUMN total REAL')
             except Exception:
                 pass
+        # ensure forma_pagamento and data_vencimento columns exist
+        if 'forma_pagamento' not in cols:
+            try:
+                cur2.execute('ALTER TABLE vendas ADD COLUMN forma_pagamento TEXT')
+            except Exception:
+                pass
+        if 'data_vencimento' not in cols:
+            try:
+                cur2.execute('ALTER TABLE vendas ADD COLUMN data_vencimento TEXT')
+            except Exception:
+                pass
 
         # create venda (include optional fields)
         insert_cols = ['id_revendedor', 'observacao']
@@ -824,6 +914,9 @@ def criar_venda():
         # optional financial fields
         discount_percent = data.get('discount_percent')
         total_final = data.get('total')
+        forma_pagamento = data.get('forma_pagamento')
+        data_vencimento = data.get('data_vencimento')
+        
         if discount_percent is not None:
             try:
                 dp = float(discount_percent)
@@ -836,6 +929,10 @@ def criar_venda():
                 insert_cols.append('total'); insert_vals.append(tf)
             except Exception:
                 pass
+        if forma_pagamento:
+            insert_cols.append('forma_pagamento'); insert_vals.append(forma_pagamento)
+        if data_vencimento:
+            insert_cols.append('data_vencimento'); insert_vals.append(data_vencimento)
 
         cols_sql = ','.join(insert_cols)
         qmarks = ','.join('?' for _ in insert_vals)
@@ -882,6 +979,48 @@ def criar_venda():
             # ignore mov insertion failures but continue
             pass
 
+        # Integração Financeira: Criar Conta a Receber (à prazo) ou Fluxo de Caixa (à vista)
+        try:
+            forma_pagamento = data.get('forma_pagamento')
+            data_vencimento = data.get('data_vencimento')
+            total_venda = total_final if total_final is not None else sum(
+                float(cur.execute('SELECT preco FROM produtos WHERE id_produto=?', (int(it['id_produto']),)).fetchone()['preco']) * int(it['quantidade'])
+                for it in items
+            )
+            
+            if forma_pagamento == 'prazo':
+                # Criar conta a receber
+                if cliente_id:
+                    cur.execute("""
+                        INSERT INTO contas_receber (id_cliente, descricao, valor, data_vencimento, status)
+                        VALUES (?, ?, ?, ?, 'pendente')
+                    """, (
+                        cliente_id,
+                        f'Venda #{venda_id}',
+                        total_venda,
+                        data_vencimento
+                    ))
+            elif forma_pagamento in ['dinheiro', 'debito', 'credito', 'pix']:
+                # Criar entrada no fluxo de caixa
+                forma_descricao = {
+                    'dinheiro': 'Dinheiro',
+                    'debito': 'Cartão Débito',
+                    'credito': 'Cartão Crédito',
+                    'pix': 'PIX'
+                }.get(forma_pagamento, forma_pagamento)
+                
+                cur.execute("""
+                    INSERT INTO fluxo_caixa (tipo, categoria, valor, descricao, data_movimentacao)
+                    VALUES ('entrada', ?, ?, ?, datetime('now'))
+                """, (
+                    forma_descricao,
+                    total_venda,
+                    f'Venda #{venda_id} - {forma_descricao}'
+                ))
+        except Exception as e:
+            # Log error but don't fail the sale
+            print(f'Erro ao criar registro financeiro: {e}')
+
         conn.commit()
         conn.close()
         log_event('venda_criada', 'venda', quantidade=len(items), detalhe=f'id_venda={venda_id} revendedor={revendedor_id}')
@@ -914,6 +1053,90 @@ def listar_vendas():
     conn.close()
     return jsonify(result)
 
+
+@app.route('/api/vendas/<int:id_venda>/estornar', methods=['POST'])
+def estornar_venda(id_venda):
+    """Estorna uma venda: reverte estoque, fluxo de caixa e conta a receber"""
+    data = request.json or {}
+    motivo = data.get('motivo', 'Estorno solicitado')
+    
+    conn = get_db()
+    cur = conn.cursor()
+    
+    try:
+        # Verificar se venda existe
+        cur.execute("PRAGMA table_info('vendas')")
+        vcols = [r['name'] for r in cur.fetchall()]
+        
+        # Adicionar coluna status se não existir
+        if 'status' not in vcols:
+            cur.execute('ALTER TABLE vendas ADD COLUMN status TEXT DEFAULT "ativa"')
+            conn.commit()
+        
+        cur.execute("SELECT * FROM vendas WHERE id_venda=?", (id_venda,))
+        venda = cur.fetchone()
+        if not venda:
+            conn.close()
+            return jsonify({'erro': 'Venda não encontrada'}), 404
+        
+        # Verificar se já foi estornada
+        venda_dict = dict(venda)
+        if venda_dict.get('status') == 'estornada':
+            conn.close()
+            return jsonify({'erro': 'Esta venda já foi estornada'}), 400
+        
+        # Buscar itens da venda
+        cur.execute("SELECT * FROM venda_items WHERE id_venda=?", (id_venda,))
+        items = cur.fetchall()
+        
+        # Reverter estoque - devolver produtos
+        for item in items:
+            item_dict = dict(item)
+            cur.execute("""
+                UPDATE produtos SET quantidade = quantidade + ?
+                WHERE id_produto=?
+            """, (item_dict['quantidade'], item_dict['id_produto']))
+            
+            # Registrar movimentação de estorno
+            cur.execute("""
+                INSERT INTO movimentacoes (id_produto, tipo, quantidade, observacao)
+                VALUES (?, 'entrada', ?, ?)
+            """, (item_dict['id_produto'], item_dict['quantidade'], 
+                   f'Estorno da venda #{id_venda} - {motivo}'))
+        
+        # Reverter fluxo de caixa (se foi à vista)
+        forma_pagamento = venda_dict.get('forma_pagamento')
+        if forma_pagamento in ['dinheiro', 'debito', 'credito', 'pix']:
+            # Criar saída para cancelar a entrada
+            valor = venda_dict.get('total', 0)
+            cur.execute("""
+                INSERT INTO fluxo_caixa (tipo, categoria, descricao, valor, data_movimentacao)
+                VALUES ('saida', 'Estorno', ?, ?, datetime('now'))
+            """, (f'Estorno venda #{id_venda}', valor))
+        
+        # Cancelar conta a receber (se foi à prazo)
+        if forma_pagamento == 'prazo':
+            cur.execute("""
+                UPDATE contas_receber 
+                SET status='cancelada', observacao=COALESCE(observacao, '') || ' | Estornada: ' || ?
+                WHERE id_venda=? AND status != 'recebido'
+            """, (motivo, id_venda))
+        
+        # Marcar venda como estornada
+        cur.execute("""
+            UPDATE vendas SET status='estornada', observacao=COALESCE(observacao, '') || ' | ESTORNADA: ' || ?
+            WHERE id_venda=?
+        """, (motivo, id_venda))
+        
+        conn.commit()
+        log_event('venda_estornada', 'sistema', detalhe=f'Venda #{id_venda} estornada: {motivo}')
+        conn.close()
+        
+        return jsonify({'mensagem': 'Venda estornada com sucesso'})
+    except Exception as e:
+        conn.rollback()
+        conn.close()
+        return jsonify({'erro': str(e)}), 500
 
 @app.route('/api/vendas/<int:id_venda>', methods=['GET'])
 def buscar_venda(id_venda):
@@ -997,9 +1220,13 @@ def listar_movimentacoes():
     conn = get_db()
     cur = conn.cursor()
     base = '''SELECT m.id_mov, m.id_produto, m.tipo, m.quantidade, m.observacao, m.data_mov,
-                     p.nome as produto_nome
+                     p.nome as produto_nome, p.preco as produto_preco,
+                     v.id_venda, v.total as venda_total, v.forma_pagamento,
+                     c.nome as cliente_nome
               FROM movimentacoes m
               LEFT JOIN produtos p ON p.id_produto = m.id_produto
+              LEFT JOIN vendas v ON m.observacao LIKE '%Venda #' || v.id_venda || '%'
+              LEFT JOIN clientes c ON c.id_cliente = v.id_cliente
               WHERE 1=1'''
 
     params = []
@@ -1024,15 +1251,25 @@ def listar_movimentacoes():
     conn.close()
     result = []
     for r in rows:
-        result.append({
+        mov_dict = {
             'id_mov': r[0],
             'id_produto': r[1],
             'tipo': r[2],
             'quantidade': r[3],
             'observacao': r[4],
             'data_mov': r[5],
-            'produto_nome': r[6]
-        })
+            'produto_nome': r[6],
+            'produto_preco': r[7]
+        }
+        # Adicionar dados da venda se existir
+        if r[8]:  # id_venda existe
+            mov_dict['venda'] = {
+                'id_venda': r[8],
+                'total': r[9],
+                'forma_pagamento': r[10],
+                'cliente_nome': r[11] or 'Cliente não identificado'
+            }
+        result.append(mov_dict)
     return jsonify(result)
 
 
@@ -1306,11 +1543,26 @@ def criar_compra():
             WHERE id_compra=?
         """, (valor_total, desconto, frete, valor_final, compra_id))
         
+        # Criar conta a pagar automaticamente
+        # Calcular data de vencimento (padrão: 30 dias da data da compra)
+        conn.execute("""
+            INSERT INTO contas_pagar (
+                id_fornecedor, descricao, valor, data_vencimento, status, numero_documento, observacao
+            ) VALUES (?, ?, ?, date(?, '+30 days'), 'pendente', ?, ?)
+        """, (
+            id_fornecedor,
+            f'Compra #{compra_id} - {data.get("numero_pedido", "")}',
+            valor_final,
+            data.get('data_compra', 'now'),
+            data.get('numero_pedido'),
+            f'Conta gerada automaticamente da compra #{compra_id}'
+        ))
+        
         conn.commit()
         log_event('compra_criada', 'sistema', valor=valor_final, detalhe=f'Compra #{compra_id}')
         conn.close()
         
-        return jsonify({'mensagem': 'Compra criada', 'id_compra': compra_id}), 201
+        return jsonify({'mensagem': 'Compra criada e conta a pagar gerada', 'id_compra': compra_id}), 201
     except Exception as e:
         conn.rollback()
         conn.close()
@@ -1383,6 +1635,62 @@ def receber_compra(id_compra):
         conn.close()
         return jsonify({'erro': str(e)}), 500
 
+@app.route('/api/compras/<int:id_compra>', methods=['GET'])
+def obter_compra(id_compra):
+    conn = get_db()
+    cur = conn.execute("""
+        SELECT c.*, f.nome_fantasia as fornecedor_nome
+        FROM compras c
+        LEFT JOIN fornecedores f ON f.id_fornecedor = c.id_fornecedor
+        WHERE c.id_compra=?
+    """, (id_compra,))
+    compra = cur.fetchone()
+    conn.close()
+    
+    if compra:
+        return jsonify(dict(compra))
+    return jsonify({'erro': 'Compra não encontrada'}), 404
+
+@app.route('/api/compras/<int:id_compra>/items', methods=['GET'])
+def listar_itens_compra(id_compra):
+    conn = get_db()
+    cur = conn.execute("""
+        SELECT ci.*, p.nome as produto_nome
+        FROM compra_items ci
+        LEFT JOIN produtos p ON p.id_produto = ci.id_produto
+        WHERE ci.id_compra=?
+    """, (id_compra,))
+    items = [dict(row) for row in cur.fetchall()]
+    conn.close()
+    return jsonify(items)
+
+@app.route('/api/compras/<int:id_compra>', methods=['PUT'])
+def atualizar_compra(id_compra):
+    data = request.json or {}
+    conn = get_db()
+    
+    try:
+        # Update only the fields provided
+        updates = []
+        params = []
+        
+        if 'status' in data:
+            updates.append('status = ?')
+            params.append(data['status'])
+        
+        if updates:
+            query = f"UPDATE compras SET {', '.join(updates)} WHERE id_compra=?"
+            params.append(id_compra)
+            conn.execute(query, params)
+            conn.commit()
+        
+        conn.close()
+        return jsonify({'mensagem': 'Compra atualizada'})
+    except Exception as e:
+        conn.rollback()
+        conn.close()
+        return jsonify({'erro': str(e)}), 500
+
 
 # ============================================
 # MÓDULO ERP: CONTAS A PAGAR
@@ -1447,6 +1755,52 @@ def criar_conta_pagar():
         conn.close()
         return jsonify({'erro': str(e)}), 500
 
+@app.route('/api/contas_pagar/<int:id_conta>/estornar', methods=['POST'])
+def estornar_pagamento(id_conta):
+    """Estorna um pagamento: volta conta para pendente e reverte fluxo de caixa"""
+    data = request.json or {}
+    motivo = data.get('motivo', 'Estorno de pagamento')
+    
+    conn = get_db()
+    
+    try:
+        # Buscar conta
+        cur = conn.execute("SELECT * FROM contas_pagar WHERE id_conta=?", (id_conta,))
+        conta = cur.fetchone()
+        if not conta:
+            conn.close()
+            return jsonify({'erro': 'Conta não encontrada'}), 404
+        
+        # Verificar se está paga
+        if conta['status'] != 'pago':
+            conn.close()
+            return jsonify({'erro': 'Esta conta não está paga'}), 400
+        
+        # Reverter status da conta
+        conn.execute("""
+            UPDATE contas_pagar SET
+                status='pendente',
+                data_pagamento=NULL,
+                observacao=COALESCE(observacao, '') || ' | Pagamento estornado: ' || ?
+            WHERE id_conta=?
+        """, (motivo, id_conta))
+        
+        # Criar entrada no fluxo para cancelar a saída
+        conn.execute("""
+            INSERT INTO fluxo_caixa (tipo, categoria, descricao, valor, data_movimentacao)
+            VALUES ('entrada', 'Estorno', ?, ?, datetime('now'))
+        """, (f'Estorno pagamento conta #{id_conta}', conta['valor']))
+        
+        conn.commit()
+        log_event('pagamento_estornado', 'sistema', valor=conta['valor'], detalhe=f'Conta #{id_conta} estornada')
+        conn.close()
+        
+        return jsonify({'mensagem': 'Pagamento estornado com sucesso'})
+    except Exception as e:
+        conn.rollback()
+        conn.close()
+        return jsonify({'erro': str(e)}), 500
+
 @app.route('/api/contas_pagar/<int:id_conta>/pagar', methods=['POST'])
 def pagar_conta(id_conta):
     data = request.json or {}
@@ -1460,22 +1814,27 @@ def pagar_conta(id_conta):
             conn.close()
             return jsonify({'erro': 'Conta não encontrada'}), 404
         
+        # Verificar se já foi paga
+        if conta['status'] == 'pago':
+            conn.close()
+            return jsonify({'erro': 'Esta conta já foi paga'}), 400
+        
         # Atualizar conta
         conn.execute("""
             UPDATE contas_pagar SET
                 status='pago',
-                data_pagamento=datetime('now'),
+                data_pagamento=?,
                 forma_pagamento=?,
                 observacao=?
             WHERE id_conta=?
-        """, (data.get('forma_pagamento'), data.get('observacao'), id_conta))
+        """, (data.get('data_pagamento'), data.get('forma_pagamento'), data.get('observacao'), id_conta))
         
-        # Registrar no fluxo de caixa
+        # Registrar no fluxo de caixa usando categoria como texto
+        forma_desc = data.get('forma_pagamento', 'Não especificado')
         conn.execute("""
-            INSERT INTO fluxo_caixa (tipo, id_categoria, descricao, valor, forma_pagamento, id_conta_pagar)
-            VALUES ('saida', ?, ?, ?, ?, ?)
-        """, (conta['id_categoria'], conta['descricao'], conta['valor'], 
-              data.get('forma_pagamento'), id_conta))
+            INSERT INTO fluxo_caixa (tipo, categoria, descricao, valor, data_movimentacao)
+            VALUES ('saida', ?, ?, ?, ?)
+        """, (forma_desc, conta['descricao'], conta['valor'], data.get('data_pagamento')))
         
         conn.commit()
         log_event('conta_paga', 'sistema', valor=conta['valor'], detalhe=f'Conta #{id_conta} paga')
@@ -1551,6 +1910,52 @@ def criar_conta_receber():
         conn.close()
         return jsonify({'erro': str(e)}), 500
 
+@app.route('/api/contas_receber/<int:id_conta>/estornar', methods=['POST'])
+def estornar_recebimento(id_conta):
+    """Estorna um recebimento: volta conta para pendente e reverte fluxo de caixa"""
+    data = request.json or {}
+    motivo = data.get('motivo', 'Estorno de recebimento')
+    
+    conn = get_db()
+    
+    try:
+        # Buscar conta
+        cur = conn.execute("SELECT * FROM contas_receber WHERE id_conta=?", (id_conta,))
+        conta = cur.fetchone()
+        if not conta:
+            conn.close()
+            return jsonify({'erro': 'Conta não encontrada'}), 404
+        
+        # Verificar se está recebida
+        if conta['status'] != 'recebido':
+            conn.close()
+            return jsonify({'erro': 'Esta conta não está recebida'}), 400
+        
+        # Reverter status da conta
+        conn.execute("""
+            UPDATE contas_receber SET
+                status='pendente',
+                data_recebimento=NULL,
+                observacao=COALESCE(observacao, '') || ' | Recebimento estornado: ' || ?
+            WHERE id_conta=?
+        """, (motivo, id_conta))
+        
+        # Criar saída no fluxo para cancelar a entrada
+        conn.execute("""
+            INSERT INTO fluxo_caixa (tipo, categoria, descricao, valor, data_movimentacao)
+            VALUES ('saida', 'Estorno', ?, ?, datetime('now'))
+        """, (f'Estorno recebimento conta #{id_conta}', conta['valor']))
+        
+        conn.commit()
+        log_event('recebimento_estornado', 'sistema', valor=conta['valor'], detalhe=f'Conta #{id_conta} estornada')
+        conn.close()
+        
+        return jsonify({'mensagem': 'Recebimento estornado com sucesso'})
+    except Exception as e:
+        conn.rollback()
+        conn.close()
+        return jsonify({'erro': str(e)}), 500
+
 @app.route('/api/contas_receber/<int:id_conta>/receber', methods=['POST'])
 def receber_conta(id_conta):
     data = request.json or {}
@@ -1564,22 +1969,27 @@ def receber_conta(id_conta):
             conn.close()
             return jsonify({'erro': 'Conta não encontrada'}), 404
         
+        # Verificar se já foi recebida
+        if conta['status'] == 'recebido':
+            conn.close()
+            return jsonify({'erro': 'Esta conta já foi recebida'}), 400
+        
         # Atualizar conta
         conn.execute("""
             UPDATE contas_receber SET
                 status='recebido',
-                data_recebimento=datetime('now'),
+                data_recebimento=?,
                 forma_recebimento=?,
                 observacao=?
             WHERE id_conta=?
-        """, (data.get('forma_recebimento'), data.get('observacao'), id_conta))
+        """, (data.get('data_pagamento'), data.get('forma_pagamento'), data.get('observacao'), id_conta))
         
-        # Registrar no fluxo de caixa
+        # Registrar no fluxo de caixa usando categoria como texto
+        forma_desc = data.get('forma_pagamento', 'Não especificado')
         conn.execute("""
-            INSERT INTO fluxo_caixa (tipo, id_categoria, descricao, valor, forma_pagamento, id_conta_receber)
-            VALUES ('entrada', ?, ?, ?, ?, ?)
-        """, (conta['id_categoria'], conta['descricao'], conta['valor'], 
-              data.get('forma_recebimento'), id_conta))
+            INSERT INTO fluxo_caixa (tipo, categoria, descricao, valor, data_movimentacao)
+            VALUES ('entrada', ?, ?, ?, ?)
+        """, (forma_desc, conta['descricao'], conta['valor'], data.get('data_pagamento')))
         
         conn.commit()
         log_event('conta_recebida', 'sistema', valor=conta['valor'], detalhe=f'Conta #{id_conta} recebida')
@@ -1603,12 +2013,24 @@ def fluxo_caixa_page():
 @app.route('/api/fluxo_caixa', methods=['GET'])
 def listar_fluxo_caixa():
     conn = get_db()
+    
+    # Garantir que a coluna 'categoria' existe
+    cur = conn.execute("PRAGMA table_info('fluxo_caixa')")
+    cols = [r['name'] for r in cur.fetchall()]
+    if 'categoria' not in cols:
+        try:
+            conn.execute('ALTER TABLE fluxo_caixa ADD COLUMN categoria TEXT')
+            conn.commit()
+        except Exception:
+            pass
+    
     data_inicio = request.args.get('data_inicio')
     data_fim = request.args.get('data_fim')
     tipo = request.args.get('tipo')
     
     query = """
-        SELECT fc.*, cat.nome as categoria_nome
+        SELECT fc.*, cat.nome as categoria_nome,
+               COALESCE(fc.categoria, cat.nome) as categoria_display
         FROM fluxo_caixa fc
         LEFT JOIN categorias_financeiras cat ON cat.id_categoria = fc.id_categoria
         WHERE 1=1
@@ -1663,6 +2085,48 @@ def resumo_fluxo_caixa():
     conn.close()
     
     return jsonify(resumo)
+
+@app.route('/api/fluxo_caixa', methods=['POST'])
+def criar_fluxo_caixa():
+    """Cria novo registro de fluxo de caixa"""
+    data = request.json or {}
+    conn = get_db()
+    
+    try:
+        cur = conn.execute("""
+            INSERT INTO fluxo_caixa (tipo, categoria, valor, descricao, data_movimentacao)
+            VALUES (?, ?, ?, ?, ?)
+        """, (
+            data.get('tipo'),
+            data.get('categoria'),
+            data.get('valor'),
+            data.get('descricao'),
+            data.get('data_movimentacao')
+        ))
+        
+        conn.commit()
+        id_movimentacao = cur.lastrowid
+        conn.close()
+        
+        return jsonify({'mensagem': 'Movimentação criada', 'id_movimentacao': id_movimentacao}), 201
+    except Exception as e:
+        conn.close()
+        return jsonify({'erro': str(e)}), 500
+
+@app.route('/api/fluxo_caixa/<int:id_movimentacao>', methods=['DELETE'])
+def excluir_fluxo_caixa(id_movimentacao):
+    """Exclui registro de fluxo de caixa"""
+    conn = get_db()
+    
+    try:
+        conn.execute("DELETE FROM fluxo_caixa WHERE id_movimentacao=?", (id_movimentacao,))
+        conn.commit()
+        conn.close()
+        
+        return jsonify({'mensagem': 'Movimentação excluída'})
+    except Exception as e:
+        conn.close()
+        return jsonify({'erro': str(e)}), 500
 
 
 # ============================================
@@ -1906,6 +2370,38 @@ def finalizar_inventario(id_inventario):
         conn.close()
         return jsonify({'erro': str(e)}), 500
 
+@app.route('/api/inventarios/<int:id_inventario>', methods=['DELETE'])
+def excluir_inventario(id_inventario):
+    """Exclui um inventário e seus itens"""
+    conn = get_db()
+    
+    try:
+        # Verificar se o inventário existe
+        cur = conn.execute("SELECT status FROM inventarios WHERE id_inventario=?", (id_inventario,))
+        inventario = cur.fetchone()
+        
+        if not inventario:
+            conn.close()
+            return jsonify({'erro': 'Inventário não encontrado'}), 404
+        
+        if inventario['status'] == 'concluido':
+            conn.close()
+            return jsonify({'erro': 'Não é possível excluir um inventário já finalizado'}), 400
+        
+        # Excluir itens do inventário
+        conn.execute("DELETE FROM inventario_items WHERE id_inventario=?", (id_inventario,))
+        
+        # Excluir inventário
+        conn.execute("DELETE FROM inventarios WHERE id_inventario=?", (id_inventario,))
+        
+        conn.commit()
+        conn.close()
+        
+        return jsonify({'mensagem': 'Inventário excluído com sucesso'})
+    except Exception as e:
+        conn.close()
+        return jsonify({'erro': str(e)}), 500
+
 
 # ============================================
 # MÓDULO ERP: RELATÓRIOS
@@ -2038,7 +2534,26 @@ def internal_error(error):
     return render_template('error.html', error='Erro interno do servidor'), 500
 
 if __name__ == '__main__':
-    # Em produção, use waitress ou outro servidor WSGI
-    # from waitress import serve
-    # serve(app, host='0.0.0.0', port=8000)
-    app.run(debug=True)
+    # Exibir banner amigável
+    print_banner()
+    
+    # Configurar túnel público (ngrok)
+    setup_ngrok()
+    
+    # Mostrar informações de acesso local
+    local_ip = get_local_ip()
+    print(f"{Fore.CYAN}{Style.BRIGHT}╔" + "═" * 68 + f"╗{Style.RESET_ALL}")
+    print(f"{Fore.CYAN}║{Fore.WHITE}{Style.BRIGHT}                     🏠 ACESSO NA REDE LOCAL                       {Fore.CYAN}║{Style.RESET_ALL}")
+    print(f"{Fore.CYAN}{Style.BRIGHT}╠" + "═" * 68 + f"╣{Style.RESET_ALL}")
+    print(f"{Fore.CYAN}║  {Fore.WHITE}💻 Neste computador:{Style.RESET_ALL}  {Fore.YELLOW}{Style.BRIGHT}http://127.0.0.1:5000{Style.RESET_ALL}" + " " * 20 + f"{Fore.CYAN}║{Style.RESET_ALL}")
+    print(f"{Fore.CYAN}║  {Fore.WHITE}📱 Outros dispositivos:{Style.RESET_ALL} {Fore.YELLOW}{Style.BRIGHT}http://{local_ip}:5000{Style.RESET_ALL}" + " " * (27 - len(local_ip)) + f"{Fore.CYAN}║{Style.RESET_ALL}")
+    print(f"{Fore.CYAN}{Style.BRIGHT}╚" + "═" * 68 + f"╝{Style.RESET_ALL}")
+    
+    print(f"\n{Fore.GREEN}{Style.BRIGHT}✅ Sistema inicializado com sucesso!{Style.RESET_ALL}")
+    print(f"{Fore.WHITE}   MANTENHA ESTA JANELA ABERTA enquanto usa o sistema.{Style.RESET_ALL}")
+    print(f"{Fore.YELLOW}   Para fechar: pressione Ctrl+C ou feche esta janela.{Style.RESET_ALL}\n")
+    print(f"{Fore.CYAN}{Style.BRIGHT}" + "═" * 70 + f"{Style.RESET_ALL}\n")
+    
+    # Desabilitar reloader para evitar múltiplas instâncias do ngrok
+    # Mantém debug para desenvolvimento mas sem recarregar automaticamente
+    app.run(host='0.0.0.0', port=5000, debug=True, use_reloader=False)

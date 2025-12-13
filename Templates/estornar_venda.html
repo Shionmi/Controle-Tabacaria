@@ -1,0 +1,282 @@
+{% extends "base.html" %}
+
+{% block title %}Estornar Venda - Tabacaria{% endblock %}
+
+{% block extra_css %}
+<style>
+    .info-card {
+        background: var(--bg-card);
+        border: 1px solid rgba(255,255,255,0.05);
+        border-radius: var(--radius-md);
+        padding: 20px;
+        margin-bottom: 24px;
+    }
+    
+    .info-row {
+        display: flex;
+        justify-content: space-between;
+        padding: 12px 0;
+        border-bottom: 1px solid rgba(255,255,255,0.05);
+    }
+    
+    .info-row:last-child {
+        border-bottom: none;
+    }
+    
+    .info-label {
+        color: var(--text-muted);
+        font-weight: 500;
+    }
+    
+    .info-value {
+        color: var(--text-main);
+        font-weight: 600;
+    }
+    
+    .items-table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-top: 16px;
+    }
+    
+    .items-table th {
+        background: rgba(0,0,0,0.2);
+        padding: 12px;
+        text-align: left;
+        font-weight: 600;
+        color: var(--text-muted);
+        font-size: 0.85rem;
+        text-transform: uppercase;
+    }
+    
+    .items-table td {
+        padding: 12px;
+        border-bottom: 1px solid rgba(255,255,255,0.05);
+    }
+    
+    .alert-warning {
+        background: rgba(245, 158, 11, 0.1);
+        border: 1px solid rgba(245, 158, 11, 0.3);
+        color: #f59e0b;
+        padding: 16px;
+        border-radius: var(--radius-md);
+        margin-bottom: 24px;
+    }
+    
+    .alert-danger {
+        background: rgba(239, 68, 68, 0.1);
+        border: 1px solid rgba(239, 68, 68, 0.3);
+        color: #ef4444;
+        padding: 16px;
+        border-radius: var(--radius-md);
+        margin-bottom: 24px;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div class="page-title">
+        <h1>Estornar Venda</h1>
+        <p>Reverte venda e devolve produtos ao estoque</p>
+    </div>
+</div>
+
+<div id="alert"></div>
+
+<div class="info-card">
+    <h2 style="margin-bottom: 20px;">Informações da Venda</h2>
+    <div id="vendaInfo">
+        <p style="text-align: center; color: var(--text-muted);">Carregando...</p>
+    </div>
+</div>
+
+<div class="info-card">
+    <h3 style="margin-bottom: 16px;">Itens da Venda</h3>
+    <table class="items-table" id="itemsTable">
+        <thead>
+            <tr>
+                <th>Produto</th>
+                <th>Quantidade</th>
+                <th>Preço Unitário</th>
+                <th>Subtotal</th>
+            </tr>
+        </thead>
+        <tbody id="itemsBody">
+            <tr><td colspan="4" style="text-align: center;">Carregando...</td></tr>
+        </tbody>
+    </table>
+</div>
+
+<div class="info-card">
+    <h3 style="margin-bottom: 16px;">Motivo do Estorno</h3>
+    <div class="form-group">
+        <textarea id="motivo" rows="4" placeholder="Descreva o motivo do estorno..." style="width: 100%; padding: 12px; background: var(--bg-body); border: 1px solid rgba(255,255,255,0.1); color: var(--text-main); border-radius: var(--radius-sm); resize: vertical;"></textarea>
+    </div>
+    
+    <div style="display: flex; gap: 12px; margin-top: 20px;">
+        <button class="btn btn-secondary" onclick="history.back()">
+            <i class="fas fa-arrow-left"></i> Voltar
+        </button>
+        <button class="btn btn-danger" id="btnEstornar" onclick="confirmarEstorno()" style="flex: 1;">
+            <i class="fas fa-undo"></i> ESTORNAR VENDA
+        </button>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    const urlParams = new URLSearchParams(window.location.search);
+    const vendaId = urlParams.get('id');
+    let vendaData = null;
+
+    async function carregarVenda() {
+        if (!vendaId) {
+            showAlert('ID da venda não fornecido', 'danger');
+            return;
+        }
+
+        try {
+            const res = await fetch(`/api/vendas/${vendaId}`);
+            if (!res.ok) throw new Error('Venda não encontrada');
+            
+            vendaData = await res.json();
+            
+            // Verificar se já foi estornada
+            if (vendaData.status === 'estornada') {
+                showAlert('Esta venda já foi estornada!', 'danger');
+                document.getElementById('btnEstornar').disabled = true;
+                document.getElementById('btnEstornar').style.opacity = '0.5';
+            }
+            
+            renderVendaInfo();
+            renderItems();
+        } catch (err) {
+            console.error(err);
+            showAlert('Erro ao carregar venda: ' + err.message, 'danger');
+        }
+    }
+
+    function renderVendaInfo() {
+        const info = document.getElementById('vendaInfo');
+        const dataVenda = new Date(vendaData.data_venda).toLocaleString('pt-BR');
+        
+        info.innerHTML = `
+            <div class="info-row">
+                <span class="info-label">ID da Venda:</span>
+                <span class="info-value">#${vendaData.id_venda}</span>
+            </div>
+            <div class="info-row">
+                <span class="info-label">Data:</span>
+                <span class="info-value">${dataVenda}</span>
+            </div>
+            <div class="info-row">
+                <span class="info-label">Cliente:</span>
+                <span class="info-value">${vendaData.cliente_nome || 'Não identificado'}</span>
+            </div>
+            <div class="info-row">
+                <span class="info-label">Forma de Pagamento:</span>
+                <span class="info-value">${vendaData.forma_pagamento || 'Não especificado'}</span>
+            </div>
+            <div class="info-row">
+                <span class="info-label">Total:</span>
+                <span class="info-value" style="color: var(--accent-gold); font-size: 1.2rem;">R$ ${Number(vendaData.valor_total || vendaData.total || 0).toFixed(2)}</span>
+            </div>
+            ${vendaData.status === 'estornada' ? `
+                <div class="alert-danger" style="margin-top: 16px;">
+                    <strong><i class="fas fa-exclamation-triangle"></i> VENDA ESTORNADA</strong><br>
+                    Esta venda já foi estornada anteriormente.
+                </div>
+            ` : ''}
+        `;
+    }
+
+    function renderItems() {
+        const tbody = document.getElementById('itemsBody');
+        
+        if (!vendaData.itens || vendaData.itens.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="4" style="text-align: center;">Nenhum item encontrado</td></tr>';
+            return;
+        }
+        
+        tbody.innerHTML = vendaData.itens.map(item => `
+            <tr>
+                <td>${item.produto_nome}</td>
+                <td>${item.quantidade}</td>
+                <td>R$ ${Number(item.preco_unitario).toFixed(2)}</td>
+                <td style="font-weight: 600;">R$ ${(item.quantidade * item.preco_unitario).toFixed(2)}</td>
+            </tr>
+        `).join('');
+    }
+
+    async function confirmarEstorno() {
+        const motivo = document.getElementById('motivo').value.trim();
+        
+        if (!motivo) {
+            alert('Por favor, informe o motivo do estorno');
+            return;
+        }
+        
+        if (!confirm(
+            `Tem certeza que deseja estornar esta venda?\\n\\n` +
+            `Isso irá:\\n` +
+            `- Devolver ${vendaData.itens.length} produto(s) ao estoque\\n` +
+            `- Reverter o lançamento financeiro\\n` +
+            `- Marcar a venda como ESTORNADA\\n\\n` +
+            `Esta ação não pode ser desfeita!`
+        )) {
+            return;
+        }
+        
+        document.getElementById('btnEstornar').disabled = true;
+        document.getElementById('btnEstornar').innerHTML = '<i class="fas fa-spinner fa-spin"></i> Processando...';
+        
+        try {
+            const res = await fetch(`/api/vendas/${vendaId}/estornar`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ motivo })
+            });
+            
+            if (res.ok) {
+                showAlert('Venda estornada com sucesso! Redirecionando...', 'success');
+                setTimeout(() => {
+                    window.location.href = '/';
+                }, 2000);
+            } else {
+                const error = await res.json();
+                showAlert('Erro ao estornar: ' + (error.erro || 'Erro desconhecido'), 'danger');
+                document.getElementById('btnEstornar').disabled = false;
+                document.getElementById('btnEstornar').innerHTML = '<i class="fas fa-undo"></i> ESTORNAR VENDA';
+            }
+        } catch (err) {
+            console.error(err);
+            showAlert('Erro de conexão', 'danger');
+            document.getElementById('btnEstornar').disabled = false;
+            document.getElementById('btnEstornar').innerHTML = '<i class="fas fa-undo"></i> ESTORNAR VENDA';
+        }
+    }
+
+    function showAlert(msg, type) {
+        const alert = document.getElementById('alert');
+        const colors = {
+            success: { bg: 'rgba(16, 185, 129, 0.1)', border: 'rgba(16, 185, 129, 0.3)', text: '#10b981' },
+            danger: { bg: 'rgba(239, 68, 68, 0.1)', border: 'rgba(239, 68, 68, 0.3)', text: '#ef4444' },
+            warning: { bg: 'rgba(245, 158, 11, 0.1)', border: 'rgba(245, 158, 11, 0.3)', text: '#f59e0b' }
+        };
+        const color = colors[type] || colors.warning;
+        
+        alert.innerHTML = `
+            <div style="background: ${color.bg}; border: 1px solid ${color.border}; color: ${color.text}; padding: 16px; border-radius: var(--radius-md); margin-bottom: 24px;">
+                ${msg}
+            </div>
+        `;
+        
+        setTimeout(() => alert.innerHTML = '', 5000);
+    }
+
+    document.addEventListener('DOMContentLoaded', carregarVenda);
+</script>
+{% endblock %}

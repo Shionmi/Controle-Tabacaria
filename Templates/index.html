@@ -1,190 +1,473 @@
 {% extends "base.html" %}
 
-{% block title %}Painel - Controle de Estoque{% endblock %}
+{% block title %}JM Tabacaria - Início{% endblock %}
+
+{% block extra_css %}
+<style>
+    .welcome-banner {
+        background: linear-gradient(135deg, rgba(15, 23, 42, 0.9), rgba(239, 68, 68, 0.15));
+        border: 1px solid rgba(239, 68, 68, 0.3);
+        border-radius: var(--radius-md);
+        padding: 32px;
+        margin-bottom: 32px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 20px;
+        position: relative;
+        overflow: hidden;
+    }
+    
+    .welcome-banner::before {
+        content: '';
+        position: absolute;
+        top: 0; left: 0; right: 0; bottom: 0;
+        background: radial-gradient(circle at 80% 50%, rgba(239, 68, 68, 0.1), transparent 60%);
+        pointer-events: none;
+    }
+
+    .welcome-text {
+        z-index: 1;
+    }
+    
+    .welcome-banner h1 {
+        font-size: 2.2rem;
+        margin-bottom: 8px;
+        color: var(--text-main);
+        font-weight: 700;
+        text-shadow: 0 2px 4px rgba(0,0,0,0.3);
+    }
+    
+    .welcome-banner p {
+        color: var(--text-muted);
+        font-size: 1.1rem;
+    }
+
+    /* Red Bull Animation */
+    @keyframes bull-breathe {
+        0% { transform: scale(1); filter: drop-shadow(0 0 0 rgba(239, 68, 68, 0)); }
+        50% { transform: scale(1.05); filter: drop-shadow(0 0 20px rgba(239, 68, 68, 0.5)); }
+        100% { transform: scale(1); filter: drop-shadow(0 0 0 rgba(239, 68, 68, 0)); }
+    }
+
+    @keyframes bull-snort {
+        0%, 90% { opacity: 0; transform: translateX(0) scale(0.5); }
+        92% { opacity: 0.8; transform: translateX(-20px) scale(1.2); }
+        100% { opacity: 0; transform: translateX(-40px) scale(2); }
+    }
+
+    .bull-container {
+        position: relative;
+        z-index: 1;
+    }
+
+    .bull-logo {
+        height: 140px;
+        animation: bull-breathe 4s infinite ease-in-out;
+        filter: drop-shadow(0 4px 6px rgba(0,0,0,0.3));
+    }
+
+    .kpi-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+        gap: 20px;
+        margin-bottom: 32px;
+    }
+
+    .kpi-card {
+        background: var(--bg-card);
+        border: 1px solid rgba(255,255,255,0.05);
+        border-radius: var(--radius-md);
+        padding: 20px;
+        transition: all 0.2s;
+        cursor: pointer;
+    }
+
+    .kpi-card:hover {
+        transform: translateY(-2px);
+        box-shadow: var(--shadow-md);
+        border-color: var(--accent-primary);
+    }
+
+    .kpi-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 12px;
+    }
+
+    .kpi-icon {
+        width: 40px;
+        height: 40px;
+        border-radius: 8px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.2rem;
+    }
+
+    .kpi-title {
+        font-size: 0.85rem;
+        color: var(--text-muted);
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+
+    .kpi-value {
+        font-size: 1.6rem;
+        font-weight: 700;
+        color: var(--text-main);
+        line-height: 1;
+        margin-bottom: 4px;
+    }
+
+    .kpi-subtitle {
+        font-size: 0.8rem;
+        color: var(--text-muted);
+    }
+
+    .module-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+        gap: 16px;
+        margin-top: 24px;
+    }
+
+    .module-card {
+        background: var(--bg-card);
+        border: 1px solid rgba(255,255,255,0.05);
+        border-radius: var(--radius-md);
+        padding: 24px;
+        text-align: center;
+        cursor: pointer;
+        transition: all 0.3s;
+        height: 140px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 12px;
+    }
+
+    .module-card:hover {
+        background: var(--bg-card-hover);
+        border-color: var(--accent-primary);
+        transform: translateY(-4px);
+        box-shadow: var(--shadow-glow);
+    }
+
+    .module-icon {
+        width: 48px;
+        height: 48px;
+        border-radius: 12px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.3rem;
+        transition: all 0.3s;
+    }
+    
+    .module-card:hover .module-icon {
+        transform: rotate(10deg);
+    }
+
+    .module-title {
+        font-weight: 600;
+        color: var(--text-main);
+        font-size: 0.95rem;
+    }
+
+    .module-desc {
+        font-size: 0.75rem;
+        color: var(--text-muted);
+    }
+</style>
+{% endblock %}
 
 {% block content %}
-<div class="page-header">
-    <div class="page-title">
-        <h1>Painel de Controle</h1>
-        <p>Acesso rápido às áreas principais e histórico recente</p>
+<!-- Welcome Banner -->
+<div class="welcome-banner">
+    <div class="welcome-text">
+        <h1>Bem-vindo à JM Tabacaria</h1>
+        <p>Sistema Integrado de Gestão e Controle</p>
+        
+        <!-- Mobile Connection Info -->
+        <div style="margin-top: 16px; background: rgba(0,0,0,0.3); padding: 14px 20px; border-radius: 10px; border-left: 4px solid var(--accent-gold); display: inline-block; max-width: 100%;">
+            <div style="display: flex; align-items: center; gap: 12px;">
+                <i class="fas fa-globe" style="font-size: 1.4rem; color: var(--accent-gold);"></i>
+                <div>
+                    <div style="font-size: 0.85rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 4px;">🌍 Acesso de Qualquer Lugar</div>
+                    <div style="font-size: 1rem; font-weight: 700; color: #4ade80; font-family: monospace; word-break: break-all;">{{ public_url }}</div>
+                    <div style="font-size: 0.75rem; color: var(--text-muted); margin-top: 4px; font-style: italic;">✨ Funciona em qualquer celular, mesmo fora do Wi-Fi!</div>
+                </div>
+            </div>
+        </div>
     </div>
-    <div class="header-actions">
-        <button class="btn btn-primary" onclick="window.location.href='/venda'">
-            <i class="fas fa-shopping-cart"></i> Nova Venda
-        </button>
+    <div class="bull-container">
+        <img src="{{ url_for('static', filename='images/Logo_tabacaria.png') }}" alt="JM Tabacaria" class="bull-logo">
     </div>
 </div>
 
-<div class="panel">
-    <h2>Visão Geral</h2>
-    <div class="dash-grid">
-        <div class="dash-card" onclick="location.href='/estoque'">
-            <div class="icon">
+<!-- KPIs Row -->
+<div class="kpi-grid">
+    <div class="kpi-card" onclick="location.href='/estoque'">
+        <div class="kpi-header">
+            <div class="kpi-title">Produtos</div>
+            <div class="kpi-icon" style="background: rgba(59, 130, 246, 0.1); color: #3b82f6;">
                 <i class="fas fa-box-open"></i>
             </div>
-            <div class="meta">
-                <h3>Produtos Cadastrados</h3>
-                <p id="countProducts">...</p>
-            </div>
         </div>
+        <div class="kpi-value" id="kpi-produtos">...</div>
+        <div class="kpi-subtitle" id="kpi-produtos-sub">Total cadastrado</div>
+    </div>
 
-        <div class="dash-card" onclick="location.href='/estoque'">
-            <div class="icon">
+    <div class="kpi-card" onclick="location.href='/estoque'">
+        <div class="kpi-header">
+            <div class="kpi-title">Estoque</div>
+            <div class="kpi-icon" style="background: rgba(16, 185, 129, 0.1); color: #10b981;">
                 <i class="fas fa-layer-group"></i>
             </div>
-            <div class="meta">
-                <h3>Total em Estoque</h3>
-                <p id="totalStock">...</p>
-            </div>
         </div>
-
-        <div class="dash-card" onclick="location.href='/movimentacoes'">
-            <div class="icon">
-                <i class="fas fa-history"></i>
-            </div>
-            <div class="meta">
-                <h3>Movimentações</h3>
-                <p>Ver histórico</p>
-            </div>
-        </div>
+        <div class="kpi-value" id="kpi-estoque-total">...</div>
+        <div class="kpi-subtitle" id="kpi-estoque-sub">Unidades totais</div>
     </div>
-</div>
 
-<div class="panel">
-    <h2>Módulos ERP</h2>
-    <div class="dash-grid" style="grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));">
-        <div class="dash-card" onclick="location.href='/dashboard_financeiro'">
-            <div class="icon" style="background: rgba(239, 68, 68, 0.1); color: #ef4444;">
-                <i class="fas fa-chart-line"></i>
-            </div>
-            <div>
-                <h3>Dashboard Financeiro</h3>
-                <p style="font-size: 0.9rem; font-weight: 400;">KPIs e indicadores</p>
-            </div>
-        </div>
-
-        <div class="dash-card" onclick="location.href='/fornecedores'">
-            <div class="icon" style="background: rgba(239, 68, 68, 0.1); color: #ef4444;">
-                <i class="fas fa-truck"></i>
-            </div>
-            <div>
-                <h3>Fornecedores</h3>
-                <p style="font-size: 0.9rem; font-weight: 400;">Gestão de fornecedores</p>
-            </div>
-        </div>
-
-        <div class="dash-card" onclick="location.href='/compras'">
-            <div class="icon" style="background: rgba(239, 68, 68, 0.1); color: #ef4444;">
-                <i class="fas fa-file-invoice"></i>
-            </div>
-            <div>
-                <h3>Compras</h3>
-                <p style="font-size: 0.9rem; font-weight: 400;">Pedidos a fornecedores</p>
-            </div>
-        </div>
-
-        <div class="dash-card" onclick="location.href='/contas_pagar'">
-            <div class="icon" style="background: rgba(239, 68, 68, 0.1); color: #ef4444;">
+    <div class="kpi-card" onclick="location.href='/contas_pagar'">
+        <div class="kpi-header">
+            <div class="kpi-title">A Pagar</div>
+            <div class="kpi-icon" style="background: rgba(239, 68, 68, 0.1); color: #ef4444;">
                 <i class="fas fa-money-bill-wave"></i>
             </div>
-            <div>
-                <h3>Contas a Pagar</h3>
-                <p style="font-size: 0.9rem; font-weight: 400;">Gestão de pagamentos</p>
-            </div>
         </div>
+        <div class="kpi-value" id="kpi-pagar">R$ 0,00</div>
+        <div class="kpi-subtitle" id="kpi-pagar-sub">0 pendentes</div>
+    </div>
 
-        <div class="dash-card" onclick="location.href='/contas_receber'">
-            <div class="icon" style="background: rgba(16, 185, 129, 0.1); color: #10b981;">
+    <div class="kpi-card" onclick="location.href='/contas_receber'">
+        <div class="kpi-header">
+            <div class="kpi-title">A Receber</div>
+            <div class="kpi-icon" style="background: rgba(245, 158, 11, 0.1); color: #f59e0b;">
                 <i class="fas fa-hand-holding-usd"></i>
             </div>
-            <div>
-                <h3>Contas a Receber</h3>
-                <p style="font-size: 0.9rem; font-weight: 400;">Controle de recebíveis</p>
+        </div>
+        <div class="kpi-value" id="kpi-receber">R$ 0,00</div>
+        <div class="kpi-subtitle" id="kpi-receber-sub">0 pendentes</div>
+    </div>
+</div>
+
+<!-- Modules Section -->
+<div class="panel">
+    <h2>Módulos do Sistema</h2>
+    
+    <h3 style="margin-top: 24px; margin-bottom: 16px; font-size: 0.9rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 1px;">Vendas & Estoque</h3>
+    <div class="module-grid">
+        <div class="module-card" onclick="location.href='/venda'">
+            <div class="module-icon" style="background: rgba(239, 68, 68, 0.1); color: #ef4444;">
+                <i class="fas fa-shopping-cart"></i>
             </div>
+            <div class="module-title">Ponto de Venda</div>
+            <div class="module-desc">PDV completo</div>
         </div>
 
-        <div class="dash-card" onclick="location.href='/fluxo_caixa'">
-            <div class="icon" style="background: rgba(59, 130, 246, 0.1); color: #3b82f6;">
-                <i class="fas fa-cash-register"></i>
+        <div class="module-card" onclick="location.href='/estoque'">
+            <div class="module-icon" style="background: rgba(59, 130, 246, 0.1); color: #3b82f6;">
+                <i class="fas fa-boxes"></i>
             </div>
-            <div>
-                <h3>Fluxo de Caixa</h3>
-                <p style="font-size: 0.9rem; font-weight: 400;">Entradas e saídas</p>
-            </div>
+            <div class="module-title">Estoque</div>
+            <div class="module-desc">Produtos & controle</div>
         </div>
 
-        <div class="dash-card" onclick="location.href='/inventario'">
-            <div class="icon" style="background: rgba(59, 130, 246, 0.1); color: #3b82f6;">
+        <div class="module-card" onclick="location.href='/clientes'">
+            <div class="module-icon" style="background: rgba(16, 185, 129, 0.1); color: #10b981;">
+                <i class="fas fa-users"></i>
+            </div>
+            <div class="module-title">Clientes</div>
+            <div class="module-desc">Cadastro & gestão</div>
+        </div>
+
+        <div class="module-card" onclick="location.href='/movimentacoes'">
+            <div class="module-icon" style="background: rgba(245, 158, 11, 0.1); color: #f59e0b;">
+                <i class="fas fa-history"></i>
+            </div>
+            <div class="module-title">Movimentações</div>
+            <div class="module-desc">Histórico completo</div>
+        </div>
+    </div>
+
+    <h3 style="margin-top: 32px; margin-bottom: 16px; font-size: 0.9rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 1px;">Compras & Fornecedores</h3>
+    <div class="module-grid">
+        <div class="module-card" onclick="location.href='/fornecedores'">
+            <div class="module-icon" style="background: rgba(239, 68, 68, 0.1); color: #ef4444;">
+                <i class="fas fa-truck"></i>
+            </div>
+            <div class="module-title">Fornecedores</div>
+            <div class="module-desc">Gestão de parceiros</div>
+        </div>
+
+        <div class="module-card" onclick="location.href='/compras'">
+            <div class="module-icon" style="background: rgba(239, 68, 68, 0.1); color: #ef4444;">
+                <i class="fas fa-file-invoice"></i>
+            </div>
+            <div class="module-title">Compras</div>
+            <div class="module-desc">Pedidos & recebimento</div>
+        </div>
+
+        <div class="module-card" onclick="location.href='/inventario'">
+            <div class="module-icon" style="background: rgba(59, 130, 246, 0.1); color: #3b82f6;">
                 <i class="fas fa-clipboard-list"></i>
             </div>
-            <div>
-                <h3>Inventário</h3>
-                <p style="font-size: 0.9rem; font-weight: 400;">Contagem física</p>
+            <div class="module-title">Inventário</div>
+            <div class="module-desc">Contagem física</div>
+        </div>
+    </div>
+
+    <h3 style="margin-top: 32px; margin-bottom: 16px; font-size: 0.9rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 1px;">Financeiro</h3>
+    <div class="module-grid">
+        <div class="module-card" onclick="location.href='/dashboard_financeiro'">
+            <div class="module-icon" style="background: rgba(239, 68, 68, 0.1); color: #ef4444;">
+                <i class="fas fa-chart-line"></i>
             </div>
+            <div class="module-title">Dashboard</div>
+            <div class="module-desc">Indicadores & KPIs</div>
         </div>
 
-        <div class="dash-card" onclick="location.href='/relatorios'">
-            <div class="icon" style="background: rgba(59, 130, 246, 0.1); color: #3b82f6;">
+        <div class="module-card" onclick="location.href='/contas_pagar'">
+            <div class="module-icon" style="background: rgba(239, 68, 68, 0.1); color: #ef4444;">
+                <i class="fas fa-money-bill-wave"></i>
+            </div>
+            <div class="module-title">Contas a Pagar</div>
+            <div class="module-desc">Despesas & obrigações</div>
+        </div>
+
+        <div class="module-card" onclick="location.href='/contas_receber'">
+            <div class="module-icon" style="background: rgba(16, 185, 129, 0.1); color: #10b981;">
+                <i class="fas fa-hand-holding-usd"></i>
+            </div>
+            <div class="module-title">Contas a Receber</div>
+            <div class="module-desc">Receitas & entradas</div>
+        </div>
+
+        <div class="module-card" onclick="location.href='/fluxo_caixa'">
+            <div class="module-icon" style="background: rgba(59, 130, 246, 0.1); color: #3b82f6;">
+                <i class="fas fa-cash-register"></i>
+            </div>
+            <div class="module-title">Fluxo de Caixa</div>
+            <div class="module-desc">Movimentações diárias</div>
+        </div>
+
+        <div class="module-card" onclick="location.href='/relatorios'">
+            <div class="module-icon" style="background: rgba(245, 158, 11, 0.1); color: #f59e0b;">
                 <i class="fas fa-chart-bar"></i>
             </div>
-            <div>
-                <h3>Relatórios</h3>
-                <p style="font-size: 0.9rem; font-weight: 400;">Análises e indicadores</p>
-            </div>
+            <div class="module-title">Relatórios</div>
+            <div class="module-desc">Análises & insights</div>
         </div>
     </div>
 </div>
 
-<div class="panel">
+<!-- Recent Activity -->
+<div class="panel" style="margin-top: 24px;">
     <h2>Últimas Movimentações</h2>
-    <table id="recentMovesTable">
-        <thead>
-            <tr>
-                <th>Produto</th>
-                <th>Tipo</th>
-                <th>Qtd</th>
-                <th>Data</th>
-            </tr>
-        </thead>
-        <tbody id="recentMovesBody">
-            <tr><td colspan="4">Carregando...</td></tr>
-        </tbody>
-    </table>
-    <div style="text-align:right; margin-top:20px">
-        <button class="btn btn-secondary" onclick="location.href='/movimentacoes'">Ver todas</button>
+    <div style="overflow-x: auto; margin-top: 16px;">
+        <table style="width: 100%;">
+            <thead>
+                <tr>
+                    <th>Produto</th>
+                    <th>Tipo</th>
+                    <th>Quantidade</th>
+                    <th>Data</th>
+                </tr>
+            </thead>
+            <tbody id="recentMovesBody">
+                <tr><td colspan="4" style="text-align: center; color: var(--text-muted);">Carregando...</td></tr>
+            </tbody>
+        </table>
+    </div>
+    <div style="text-align: right; margin-top: 16px;">
+        <button class="btn btn-secondary" onclick="location.href='/movimentacoes'">
+            Ver Todas <i class="fas fa-arrow-right"></i>
+        </button>
     </div>
 </div>
 {% endblock %}
 
 {% block extra_js %}
 <script>
-    async function fetchCounts(){
-        try{
-            const p = await fetch('/api/produtos');
-            const produtos = p.ok? await p.json():[];
-            document.getElementById('countProducts').textContent = produtos.length;
-            const total = produtos.reduce((s,item)=> s + (parseInt(item.quantidade)||0), 0);
-            document.getElementById('totalStock').textContent = total;
-
-            const m = await fetch('/api/movimentacoes?limit=5');
-            const moves = m.ok? await m.json():[];
+async function carregarDashboard() {
+    try {
+        // Load products and stock
+        const resProdutos = await fetch('/api/produtos');
+        if (resProdutos.ok) {
+            const produtos = await resProdutos.json();
+            document.getElementById('kpi-produtos').textContent = produtos.length;
+            
+            const totalEstoque = produtos.reduce((sum, p) => sum + (parseInt(p.quantidade) || 0), 0);
+            document.getElementById('kpi-estoque-total').textContent = totalEstoque.toLocaleString('pt-BR');
+            
+            const baixoEstoque = produtos.filter(p => p.quantidade < 10).length;
+            if (baixoEstoque > 0) {
+                document.getElementById('kpi-estoque-sub').textContent = `${baixoEstoque} produtos baixos`;
+                document.getElementById('kpi-estoque-sub').style.color = '#ef4444';
+            }
+        }
+        
+        // Load financial KPIs
+        const resKPIs = await fetch('/api/dashboard/kpis');
+        if (resKPIs.ok) {
+            const kpis = await resKPIs.json();
+            
+            // Contas a Pagar
+            document.getElementById('kpi-pagar').textContent = formatarMoeda(kpis.contas_pagar.valor_total);
+            document.getElementById('kpi-pagar-sub').textContent = `${kpis.contas_pagar.total} pendentes`;
+            
+            // Contas a Receber
+            document.getElementById('kpi-receber').textContent = formatarMoeda(kpis.contas_receber.valor_total);
+            document.getElementById('kpi-receber-sub').textContent = `${kpis.contas_receber.total} pendentes`;
+        }
+        
+        // Load recent movements
+        const resMovimentos = await fetch('/api/movimentacoes?limit=5');
+        if (resMovimentos.ok) {
+            const movimentos = await resMovimentos.json();
             const tbody = document.getElementById('recentMovesBody');
             
-            if(!moves.length) { 
-                tbody.innerHTML = '<tr><td colspan="4">Nenhuma movimentação recente</td></tr>'; 
-                return 
+            if (movimentos.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="4" style="text-align: center; color: var(--text-muted);">Nenhuma movimentação recente</td></tr>';
+            } else {
+                tbody.innerHTML = movimentos.map(m => {
+                    const tipoClass = m.tipo === 'entrada' ? 'success' : 'danger';
+                    const tipoIcon = m.tipo === 'entrada' ? 'arrow-up' : 'arrow-down';
+                    const data = m.data_mov ? new Date(m.data_mov).toLocaleDateString('pt-BR') : '-';
+                    
+                    return `
+                        <tr>
+                            <td>${m.produto_nome || '?'}</td>
+                            <td>
+                                <span class="badge badge-${tipoClass}">
+                                    <i class="fas fa-${tipoIcon}"></i> ${m.tipo}
+                                </span>
+                            </td>
+                            <td>${m.quantidade}</td>
+                            <td>${data}</td>
+                        </tr>
+                    `;
+                }).join('');
             }
-            
-            tbody.innerHTML = moves.map(mi => `
-                <tr>
-                    <td>${mi.produto_nome||'?'}</td>
-                    <td><span class="badge badge-${mi.tipo === 'entrada' ? 'success' : 'danger'}">${mi.tipo}</span></td>
-                    <td>${mi.quantidade}</td>
-                    <td>${mi.data_mov}</td>
-                </tr>
-            `).join('');
-        }catch(e){ console.error(e); }
+        }
+        
+    } catch (error) {
+        console.error('Erro ao carregar dashboard:', error);
     }
-    fetchCounts();
+}
+
+function formatarMoeda(valor) {
+    return new Intl.NumberFormat('pt-BR', {
+        style: 'currency',
+        currency: 'BRL'
+    }).format(valor || 0);
+}
+
+document.addEventListener('DOMContentLoaded', carregarDashboard);
 </script>
 {% endblock %}

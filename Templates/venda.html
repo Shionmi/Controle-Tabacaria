@@ -1,371 +1,666 @@
 {% extends "base.html" %}
 
-{% block title %}Registrar Venda{% endblock %}
+{% block title %}Nova Venda{% endblock %}
+
+{% block extra_css %}
+<style>
+    /* Sales Page Specific Layout */
+    .sales-layout {
+        display: grid;
+        grid-template-columns: 1fr 400px;
+        gap: 24px;
+        height: calc(100vh - 140px);
+    }
+
+    /* Left Side: Product Catalog */
+    .catalog-section {
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+        height: 100%;
+        overflow: hidden;
+    }
+
+    .search-bar {
+        background: var(--bg-card);
+        padding: 16px;
+        border-radius: var(--radius-md);
+        border: 1px solid rgba(255,255,255,0.05);
+        display: flex;
+        gap: 12px;
+        box-shadow: var(--shadow-sm);
+    }
+
+    .search-input {
+        flex: 1;
+        background: rgba(0,0,0,0.2);
+        border: 1px solid rgba(255,255,255,0.1);
+        padding: 12px 16px;
+        border-radius: var(--radius-sm);
+        color: var(--text-main);
+        font-size: 1rem;
+    }
+
+    .search-input:focus {
+        border-color: var(--accent-primary);
+        box-shadow: 0 0 0 2px rgba(239, 68, 68, 0.2);
+    }
+
+    .products-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+        gap: 16px;
+        overflow-y: auto;
+        padding-right: 8px;
+        padding-bottom: 20px;
+    }
+
+    .product-item {
+        background: var(--bg-card);
+        border: 1px solid rgba(255,255,255,0.05);
+        border-radius: var(--radius-md);
+        padding: 16px;
+        cursor: pointer;
+        transition: all 0.2s;
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+        height: 100%;
+        position: relative;
+        overflow: hidden;
+    }
+
+    .product-item:hover {
+        transform: translateY(-4px);
+        border-color: var(--accent-primary);
+        box-shadow: var(--shadow-md);
+    }
+
+    .product-item:active {
+        transform: scale(0.98);
+    }
+
+    .product-name {
+        font-weight: 600;
+        margin-bottom: 8px;
+        font-size: 0.95rem;
+        line-height: 1.3;
+    }
+
+    .product-meta {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-top: auto;
+    }
+
+    .product-price {
+        color: var(--accent-gold);
+        font-weight: 700;
+        font-size: 1.1rem;
+    }
+
+    .product-stock {
+        font-size: 0.8rem;
+        padding: 2px 8px;
+        border-radius: 10px;
+        background: rgba(255,255,255,0.05);
+    }
+
+    /* Right Side: Cart & Checkout */
+    .cart-section {
+        background: var(--bg-card);
+        border-radius: var(--radius-md);
+        border: 1px solid rgba(255,255,255,0.05);
+        display: flex;
+        flex-direction: column;
+        height: 100%;
+        overflow: hidden;
+        box-shadow: var(--shadow-md);
+    }
+
+    .cart-header {
+        padding: 20px;
+        border-bottom: 1px solid rgba(255,255,255,0.05);
+        background: rgba(0,0,0,0.2);
+    }
+
+    .cart-items {
+        flex: 1;
+        overflow-y: auto;
+        padding: 16px;
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+    }
+
+    .cart-item {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        background: rgba(255,255,255,0.02);
+        padding: 12px;
+        border-radius: var(--radius-sm);
+        border: 1px solid rgba(255,255,255,0.03);
+        animation: slideInLeft 0.3s ease;
+    }
+
+    .cart-item-info h4 {
+        font-size: 0.9rem;
+        margin-bottom: 4px;
+    }
+
+    .cart-item-controls {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+    }
+
+    .qty-btn {
+        width: 28px;
+        height: 28px;
+        border-radius: 50%;
+        border: 1px solid rgba(255,255,255,0.1);
+        background: transparent;
+        color: var(--text-main);
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: 0.2s;
+    }
+
+    .qty-btn:hover {
+        background: var(--accent-primary);
+        border-color: var(--accent-primary);
+        color: white;
+    }
+
+    .cart-footer {
+        padding: 24px;
+        background: rgba(0,0,0,0.3);
+        border-top: 1px solid rgba(255,255,255,0.05);
+    }
+
+    .total-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 16px;
+        font-size: 1.5rem;
+        font-weight: 700;
+        color: var(--accent-gold);
+    }
+
+    /* Client Search Suggestions */
+    .suggestions-dropdown {
+        position: absolute;
+        top: 100%;
+        left: 0;
+        right: 0;
+        background: var(--bg-card);
+        border: 1px solid rgba(255,255,255,0.1);
+        border-radius: 0 0 var(--radius-sm) var(--radius-sm);
+        max-height: 200px;
+        overflow-y: auto;
+        z-index: 100;
+        box-shadow: var(--shadow-md);
+    }
+
+    .suggestion-item {
+        padding: 10px 12px;
+        cursor: pointer;
+        border-bottom: 1px solid rgba(255,255,255,0.05);
+        transition: background 0.2s;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+    .suggestion-item:hover {
+        background: rgba(255,255,255,0.05);
+    }
+
+    .suggestion-item:last-child {
+        border-bottom: none;
+    }
+
+    .suggestion-name {
+        font-weight: 500;
+        color: var(--text-main);
+    }
+    
+    .suggestion-cpf {
+        font-size: 0.8rem;
+        color: var(--text-muted);
+    }
+
+    /* Mobile Responsive */
+    @media (max-width: 1024px) {
+        .sales-layout {
+            grid-template-columns: 1fr;
+            height: auto;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .catalog-section {
+            height: 500px;
+        }
+
+        .cart-section {
+            height: auto;
+            max-height: 500px;
+        }
+    }
+</style>
+{% endblock %}
 
 {% block content %}
 <div class="page-header">
     <div class="page-title">
-        <h1>Registrar Venda</h1>
-        <p>Selecione os produtos e finalize a venda</p>
+        <h1>Ponto de Venda</h1>
+        <p>Selecione produtos e finalize a venda</p>
     </div>
 </div>
 
-<div class="panel">
-    <h2>Nova Venda</h2>
-    <div id="alertBox"></div>
-
-    <form id="saleForm" autocomplete="off">
-        <!-- Cliente Section -->
-        <div class="form-group" style="background: rgba(255,255,255,0.02); padding: 20px; border-radius: var(--radius-md); border: 1px solid rgba(255,255,255,0.05);">
-            <label style="font-size: 1.1rem; color: var(--accent-gold); margin-bottom: 16px;">Cliente</label>
-            
-            <div style="display:flex; gap:24px; align-items:center; margin-bottom:16px">
-                <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
-                    <input type="radio" name="cliente_mode" value="existing" checked> 
-                    <span>Cliente cadastrado</span>
-                </label>
-                <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
-                    <input type="radio" name="cliente_mode" value="manual"> 
-                    <span>Digitar nome</span>
-                </label>
+<div class="sales-layout">
+    <!-- Left: Product Catalog -->
+    <div class="catalog-section">
+        <div class="search-bar">
+            <i class="fas fa-search" style="align-self: center; color: var(--text-muted);"></i>
+            <input type="text" id="searchInput" class="search-input" placeholder="Buscar produtos por nome, código ou categoria..." autofocus>
+        </div>
+        
+        <div id="productsGrid" class="products-grid">
+            <div style="grid-column: 1/-1; text-align: center; padding: 40px; color: var(--text-muted);">
+                <i class="fas fa-spinner fa-spin fa-2x"></i>
+                <p style="margin-top: 10px;">Carregando produtos...</p>
             </div>
+        </div>
+    </div>
 
-            <div id="clienteExisting">
-                <div style="position:relative">
-                    <div style="display: flex; gap: 8px;">
-                        <input type="text" id="clienteNome" placeholder="Buscar cliente cadastrado..." autocomplete="off">
-                        <button type="button" id="clienteToggle" class="btn btn-secondary" style="padding: 0 16px;">▼</button>
+    <!-- Right: Cart -->
+    <div class="cart-section">
+        <div class="cart-header">
+            <h2 style="font-size: 1.2rem; margin: 0;"><i class="fas fa-shopping-cart"></i> Carrinho de Compras</h2>
+            
+            <!-- Client Search (Always visible, optional) -->
+            <div style="margin-top: 16px; position: relative;">
+                <label style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 8px; display: block;">Cliente (Opcional)</label>
+                
+                <!-- Search Input -->
+                <div id="clientSearchContainer" style="position: relative;">
+                    <input type="text" id="clientSearchInput" class="search-input" placeholder="Digite para buscar cliente..." style="width: 100%; padding: 10px; padding-right: 36px; font-size: 0.9rem;" autocomplete="off">
+                    <i class="fas fa-user" style="position: absolute; right: 12px; top: 50%; transform: translateY(-50%); color: var(--text-muted); pointer-events: none;"></i>
+                    <!-- Suggestions Dropdown -->
+                    <div id="clientSuggestions" class="suggestions-dropdown" style="display: none;"></div>
+                </div>
+
+                <!-- Selected Client Display -->
+                <div id="selectedClientDisplay" style="display: none; background: rgba(16, 185, 129, 0.1); border: 1px solid var(--accent-success); padding: 10px 12px; border-radius: var(--radius-sm); margin-top: 8px; display: flex; align-items: center; justify-content: space-between;">
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <i class="fas fa-check-circle" style="color: var(--accent-success);"></i>
+                        <div>
+                            <div style="font-size: 0.75rem; color: var(--accent-success);">Cliente Selecionado</div>
+                            <div id="selectedClientName" style="font-weight: 600; font-size: 0.9rem;">-</div>
+                        </div>
                     </div>
-                    <div id="clienteList" style="display:none; position:absolute; top: 100%; left:0; right:0; background: var(--bg-card); border:1px solid var(--accent-gold); border-radius: var(--radius-sm); margin-top:4px; max-height:200px; overflow-y:auto; z-index:50; box-shadow: var(--shadow-md);"></div>
+                    <button onclick="clearClientSelection()" style="background: none; border: none; color: var(--text-muted); cursor: pointer; padding: 4px; font-size: 1.1rem;" title="Remover cliente">
+                        <i class="fas fa-times"></i>
+                    </button>
                 </div>
-                <div id="clienteDetails" style="display:none; margin-top:12px; background: rgba(239, 68, 68, 0.1); padding: 12px; border-radius: var(--radius-sm); border: 1px solid rgba(239, 68, 68, 0.2); color: var(--text-main);"></div>
-            </div>
-
-            <div id="clienteManual" style="display:none">
-                <input type="text" id="clienteManualNome" placeholder="Digite o nome do cliente">
             </div>
         </div>
 
-        <!-- Items Section -->
-        <div class="form-group" style="margin-top: 24px;">
-            <label style="font-size: 1.1rem; color: var(--accent-gold); margin-bottom: 16px;">Itens da Venda</label>
-            
-            <div id="itemsList" style="display: grid; gap: 12px;">
-                <div class="item-row" style="display: grid; grid-template-columns: 1fr 100px 40px; gap: 12px; align-items: center;">
-                    <select class="produto-select" required>
-                        <option value="">Selecione um produto...</option>
-                    </select>
-                    <input type="number" class="quantidade-input" min="1" placeholder="Qtd" required>
-                    <button type="button" class="btn btn-danger btn-remove" onclick="this.closest('.item-row').remove(); updatePreview()" style="display:none; padding: 8px;">&times;</button>
-                </div>
+        <div id="cartItems" class="cart-items">
+            <div style="text-align: center; color: var(--text-muted); margin-top: 40px;">
+                <i class="fas fa-shopping-basket fa-3x" style="opacity: 0.3; margin-bottom: 16px;"></i>
+                <p>Seu carrinho está vazio</p>
             </div>
-            
-            <button type="button" class="btn btn-secondary" style="margin-top: 16px; width: 100%; border-style: dashed;" onclick="addItemRow()">
-                <i class="fas fa-plus"></i> Adicionar Item
-            </button>
         </div>
 
-        <!-- Preview Section -->
-        <div style="background: rgba(0,0,0,0.2); padding: 24px; border-radius: var(--radius-md); margin-top: 24px; border: 1px solid rgba(255,255,255,0.05);">
-            <h3 style="margin-bottom: 16px; font-size: 1rem; text-transform: uppercase; letter-spacing: 1px; color: var(--text-muted);">Resumo</h3>
-            
-            <div id="previewItems" style="margin-bottom: 16px; font-size: 0.9rem; color: var(--text-muted);"></div>
-            
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; font-size: 1.1rem;">
-                <span>Subtotal:</span>
-                <span>R$ <span id="previewTotal">0,00</span></span>
+        <div class="cart-footer">
+            <div style="display: flex; justify-content: space-between; margin-bottom: 12px; font-size: 0.9rem; color: var(--text-muted);">
+                <span>Subtotal</span>
+                <span id="subtotalValue">R$ 0,00</span>
             </div>
-            
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
-                <div style="display: flex; align-items: center; gap: 12px;">
-                    <label style="font-size: 0.9rem;">Desconto (%):</label>
-                    <input type="number" id="discountPercent" placeholder="0" style="width: 80px; padding: 8px;">
+                <span style="font-size: 0.9rem; color: var(--text-muted);">Desconto</span>
+                <div style="display: flex; align-items: center; gap: 4px;">
+                    <input type="number" id="discountInput" value="0" min="0" max="100" style="width: 60px; padding: 4px 8px; text-align: right; background: var(--bg-body); border: 1px solid rgba(255,255,255,0.1); color: var(--text-main); border-radius: var(--radius-sm);">
+                    <span>%</span>
                 </div>
             </div>
             
-            <div style="display: flex; justify-content: space-between; align-items: center; padding-top: 16px; border-top: 1px solid rgba(255,255,255,0.1); font-size: 1.5rem; font-weight: bold; color: var(--accent-gold);">
-                <span>Total Final:</span>
-                <span>R$ <span id="previewTotalAfter">0,00</span></span>
+            <!-- Forma de Pagamento -->
+            <div style="margin-bottom: 16px;">
+                <label style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 8px; display: block;">Forma de Pagamento</label>
+                <select id="paymentMethod" style="width: 100%; padding: 10px; background: var(--bg-body); border: 1px solid rgba(255,255,255,0.1); color: var(--text-main); border-radius: var(--radius-sm); font-size: 0.9rem;" onchange="toggleDueDate()">
+                    <option value="dinheiro">💵 Dinheiro</option>
+                    <option value="debito">💳 Cartão Débito</option>
+                    <option value="credito">💳 Cartão Crédito</option>
+                    <option value="pix">📱 PIX</option>
+                    <option value="prazo">📅 À Prazo</option>
+                </select>
             </div>
-        </div>
+            
+            <!-- Data de Vencimento (apenas para à prazo) -->
+            <div id="dueDateContainer" style="margin-bottom: 16px; display: none;">
+                <label style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 8px; display: block;">Data de Vencimento</label>
+                <input type="date" id="dueDate" style="width: 100%; padding: 10px; background: var(--bg-body); border: 1px solid rgba(255,255,255,0.1); color: var(--text-main); border-radius: var(--radius-sm); font-size: 0.9rem;">
+            </div>
+            
+            <div class="total-row">
+                <span>Total</span>
+                <span id="totalValue">R$ 0,00</span>
+            </div>
 
-        <div class="form-group" style="margin-top: 24px;">
-            <label>Observações</label>
-            <textarea id="observacao" rows="3" placeholder="Notas adicionais..."></textarea>
-        </div>
-
-        <div style="text-align:right; margin-top:32px">
-            <button type="submit" class="btn btn-primary" style="padding: 16px 32px; font-size: 1.1rem;">
-                <i class="fas fa-check"></i> Finalizar Venda
+            <button class="btn btn-primary" style="width: 100%; padding: 16px; font-size: 1.1rem;" onclick="finalizeSale()">
+                <i class="fas fa-check-circle"></i> FINALIZAR VENDA
             </button>
         </div>
-    </form>
+    </div>
 </div>
-{% endblock %}
 
-{% block extra_js %}
 <script>
-    // Global state
-    let produtos = [];
-    let clientes = [];
-    let selectedCliente = null;
+    let allProducts = [];
+    let cart = [];
+    let clients = [];
+    let selectedClient = null;
 
-    function showAlert(message, success=true) {
-        const box = document.getElementById('alertBox');
-        box.innerHTML = `<div style="padding: 12px; border-radius: var(--radius-sm); background: ${success ? 'rgba(16, 185, 129, 0.1)' : 'rgba(239, 68, 68, 0.1)'}; color: ${success ? '#10b981' : '#ef4444'}; border: 1px solid ${success ? 'rgba(16, 185, 129, 0.2)' : 'rgba(239, 68, 68, 0.2)'}; margin-bottom: 20px;">${message}</div>`;
-        setTimeout(() => box.innerHTML = '', 6000);
-    }
+    // Initialize
+    document.addEventListener('DOMContentLoaded', () => {
+        loadProducts();
+        loadClients();
+        
+        // Product Search Filter
+        document.getElementById('searchInput').addEventListener('input', (e) => {
+            const term = e.target.value.toLowerCase();
+            const filtered = allProducts.filter(p => 
+                p.nome.toLowerCase().includes(term) || 
+                (p.codigo_barras && p.codigo_barras.includes(term)) ||
+                (p.categoria && p.categoria.toLowerCase().includes(term))
+            );
+            renderProducts(filtered);
+        });
 
-    async function loadProdutos() {
+        // Client Search Filter
+        const clientInput = document.getElementById('clientSearchInput');
+        clientInput.addEventListener('input', (e) => {
+            const term = e.target.value.toLowerCase().trim();
+            if (term.length < 1) {
+                document.getElementById('clientSuggestions').style.display = 'none';
+                return;
+            }
+            
+            const filtered = clients.filter(c => 
+                c.nome.toLowerCase().includes(term) || 
+                (c.cpf && c.cpf.includes(term))
+            );
+            renderClientSuggestions(filtered);
+        });
+
+        // Hide suggestions when clicking outside
+        document.addEventListener('click', (e) => {
+            if (!e.target.closest('#clientSearchContainer')) {
+                document.getElementById('clientSuggestions').style.display = 'none';
+            }
+        });
+
+        // Discount Handler
+        document.getElementById('discountInput').addEventListener('input', updateCartTotals);
+    });
+
+    async function loadProducts() {
         try {
             const res = await fetch('/api/produtos');
-            if (!res.ok) throw new Error('Falha ao carregar produtos');
-            produtos = await res.json();
-            updateProdutoSelects();
-        } catch(err) {
+            allProducts = await res.json();
+            renderProducts(allProducts);
+        } catch (err) {
             console.error(err);
-            showAlert('Erro ao carregar produtos.', false);
+            document.getElementById('productsGrid').innerHTML = '<p style="color: var(--accent-primary); grid-column: 1/-1; text-align: center;">Erro ao carregar produtos.</p>';
         }
     }
 
-    async function loadClientes() {
+    async function loadClients() {
         try {
             const res = await fetch('/api/clientes');
-            if (!res.ok) throw new Error('Falha ao carregar clientes');
-            clientes = await res.json();
-        } catch(err) {
-            console.error(err);
+            clients = await res.json();
+        } catch (err) {
+            console.error('Erro ao carregar clientes:', err);
         }
     }
 
-    function updateProdutoSelects() {
-        document.querySelectorAll('.produto-select').forEach(select => {
-            const currentVal = select.value;
-            select.innerHTML = '<option value="">Selecione um produto...</option>';
-            produtos.forEach(p => {
-                const option = document.createElement('option');
-                option.value = p.id_produto;
-                option.textContent = `${p.nome} (Estoque: ${p.quantidade}) - R$ ${Number(p.preco).toFixed(2)}`;
-                option.dataset.price = p.preco;
-                option.dataset.stock = p.quantidade;
-                select.appendChild(option);
-            });
-            select.value = currentVal;
-        });
-    }
-
-    function addItemRow() {
-        const div = document.createElement('div');
-        div.className = 'item-row';
-        div.style.cssText = 'display: grid; grid-template-columns: 1fr 100px 40px; gap: 12px; align-items: center;';
-        div.innerHTML = `
-            <select class="produto-select" required>
-                <option value="">Selecione um produto...</option>
-            </select>
-            <input type="number" class="quantidade-input" min="1" placeholder="Qtd" required>
-            <button type="button" class="btn btn-danger btn-remove" onclick="this.closest('.item-row').remove(); updatePreview()" style="padding: 8px;">&times;</button>
-        `;
-        document.getElementById('itemsList').appendChild(div);
-        
-        // Populate select
-        const select = div.querySelector('.produto-select');
-        produtos.forEach(p => {
-            const option = document.createElement('option');
-            option.value = p.id_produto;
-            option.textContent = `${p.nome} (Estoque: ${p.quantidade}) - R$ ${Number(p.preco).toFixed(2)}`;
-            option.dataset.price = p.preco;
-            option.dataset.stock = p.quantidade;
-            select.appendChild(option);
-        });
-
-        // Add listeners
-        select.addEventListener('change', updatePreview);
-        div.querySelector('.quantidade-input').addEventListener('input', updatePreview);
-        
-        // Show remove buttons if > 1 row
-        document.querySelectorAll('.btn-remove').forEach(btn => btn.style.display = 'block');
-    }
-
-    function updatePreview() {
-        let total = 0;
-        const previewDiv = document.getElementById('previewItems');
-        previewDiv.innerHTML = '';
-        
-        document.querySelectorAll('.item-row').forEach(row => {
-            const select = row.querySelector('.produto-select');
-            const qtdInput = row.querySelector('.quantidade-input');
-            const qtd = parseInt(qtdInput.value) || 0;
-            
-            if (select.value && qtd > 0) {
-                const option = select.selectedOptions[0];
-                const price = parseFloat(option.dataset.price);
-                const sub = price * qtd;
-                total += sub;
-                
-                previewDiv.innerHTML += `
-                    <div style="display: flex; justify-content: space-between; margin-bottom: 4px;">
-                        <span>${option.text.split(' (')[0]} x${qtd}</span>
-                        <span>R$ ${sub.toFixed(2)}</span>
-                    </div>
-                `;
-            }
-        });
-
-        document.getElementById('previewTotal').textContent = total.toFixed(2);
-        
-        const discount = parseFloat(document.getElementById('discountPercent').value) || 0;
-        const finalTotal = total * (1 - (discount / 100));
-        document.getElementById('previewTotalAfter').textContent = finalTotal.toFixed(2);
-    }
-
-    // Cliente Search Logic
-    const clienteInput = document.getElementById('clienteNome');
-    const clienteList = document.getElementById('clienteList');
-    const clienteToggle = document.getElementById('clienteToggle');
-
-    function filterClientes() {
-        const term = clienteInput.value.toLowerCase();
-        const filtered = clientes.filter(c => c.nome.toLowerCase().includes(term));
-        
-        clienteList.innerHTML = '';
-        if (filtered.length === 0) {
-            clienteList.innerHTML = '<div style="padding:8px; color:var(--text-muted)">Nenhum cliente encontrado</div>';
-        } else {
-            filtered.forEach(c => {
-                const div = document.createElement('div');
-                div.style.padding = '8px 12px';
-                div.style.cursor = 'pointer';
-                div.style.borderBottom = '1px solid rgba(255,255,255,0.05)';
-                div.onmouseover = () => div.style.background = 'rgba(255,255,255,0.05)';
-                div.onmouseout = () => div.style.background = 'transparent';
-                div.textContent = c.nome;
-                div.onclick = () => selectCliente(c);
-                clienteList.appendChild(div);
-            });
-        }
-        clienteList.style.display = 'block';
-    }
-
-    function selectCliente(c) {
-        selectedCliente = c;
-        clienteInput.value = c.nome;
-        clienteList.style.display = 'none';
-        const details = document.getElementById('clienteDetails');
-        details.style.display = 'block';
-        details.innerHTML = `<strong>Cliente Selecionado:</strong> ${c.nome} <br> <small>${c.email || ''} - ${c.telefone || ''}</small>`;
-    }
-
-    clienteInput.addEventListener('input', filterClientes);
-    clienteInput.addEventListener('focus', filterClientes);
-    
-    clienteToggle.addEventListener('click', () => {
-        if (clienteList.style.display === 'none') filterClientes();
-        else clienteList.style.display = 'none';
-    });
-
-    document.addEventListener('click', (e) => {
-        if (!clienteInput.contains(e.target) && !clienteList.contains(e.target) && !clienteToggle.contains(e.target)) {
-            clienteList.style.display = 'none';
-        }
-    });
-
-    // Mode switching
-    document.querySelectorAll('input[name="cliente_mode"]').forEach(radio => {
-        radio.addEventListener('change', (e) => {
-            if (e.target.value === 'existing') {
-                document.getElementById('clienteExisting').style.display = 'block';
-                document.getElementById('clienteManual').style.display = 'none';
-            } else {
-                document.getElementById('clienteExisting').style.display = 'none';
-                document.getElementById('clienteManual').style.display = 'block';
-                selectedCliente = null;
-                document.getElementById('clienteDetails').style.display = 'none';
-                clienteInput.value = '';
-            }
-        });
-    });
-
-    // Discount listener
-    document.getElementById('discountPercent').addEventListener('input', updatePreview);
-
-    // Initial listeners for first row
-    document.querySelector('.produto-select').addEventListener('change', updatePreview);
-    document.querySelector('.quantidade-input').addEventListener('input', updatePreview);
-    document.querySelector('.add-item-btn').addEventListener('click', addItemRow);
-
-    // Submit
-    document.getElementById('saleForm').addEventListener('submit', async (e) => {
-        e.preventDefault();
-        
-        const mode = document.querySelector('input[name="cliente_mode"]:checked').value;
-        let clienteId = null;
-        let clienteNome = null;
-
-        if (mode === 'existing') {
-            if (!selectedCliente) {
-                showAlert('Selecione um cliente da lista ou mude para "Digitar nome"', false);
-                return;
-            }
-            clienteId = selectedCliente.id_cliente;
-        } else {
-            clienteNome = document.getElementById('clienteManualNome').value.trim();
-            if (!clienteNome) {
-                showAlert('Digite o nome do cliente', false);
-                return;
-            }
-        }
-
-        const itens = [];
-        document.querySelectorAll('.item-row').forEach(row => {
-            const prodId = row.querySelector('.produto-select').value;
-            const qtd = parseInt(row.querySelector('.quantidade-input').value);
-            if (prodId && qtd > 0) {
-                itens.push({ id_produto: prodId, quantidade: qtd });
-            }
-        });
-
-        if (itens.length === 0) {
-            showAlert('Adicione pelo menos um produto', false);
+    function renderClientSuggestions(filteredClients) {
+        const container = document.getElementById('clientSuggestions');
+        if (filteredClients.length === 0) {
+            container.innerHTML = '<div class="suggestion-item" style="cursor: default; color: var(--text-muted);">Nenhum cliente encontrado</div>';
+            container.style.display = 'block';
             return;
         }
 
-        const obs = document.getElementById('observacao').value;
-        const discount = parseFloat(document.getElementById('discountPercent').value) || 0;
+        container.innerHTML = filteredClients.map(c => `
+            <div class="suggestion-item" onclick="selectClient(${c.id_cliente})">
+                <span class="suggestion-name">${c.nome}</span>
+                <span class="suggestion-cpf">${c.cpf || ''}</span>
+            </div>
+        `).join('');
+        container.style.display = 'block';
+    }
+
+    function selectClient(clientId) {
+        const client = clients.find(c => c.id_cliente === clientId);
+        if (!client) return;
+
+        selectedClient = client;
+        document.getElementById('selectedClientName').textContent = client.nome;
+        
+        document.getElementById('clientSearchContainer').style.display = 'none';
+        document.getElementById('selectedClientDisplay').style.display = 'flex';
+        document.getElementById('clientSuggestions').style.display = 'none';
+        document.getElementById('clientSearchInput').value = '';
+    }
+
+    function clearClientSelection() {
+        selectedClient = null;
+        document.getElementById('clientSearchContainer').style.display = 'block';
+        document.getElementById('selectedClientDisplay').style.display = 'none';
+        document.getElementById('clientSearchInput').value = '';
+        document.getElementById('clientSearchInput').focus();
+    }
+
+    function renderProducts(products) {
+        const grid = document.getElementById('productsGrid');
+        if (products.length === 0) {
+            grid.innerHTML = '<div style="grid-column: 1/-1; text-align: center; padding: 20px; color: var(--text-muted);">Nenhum produto encontrado.</div>';
+            return;
+        }
+
+        grid.innerHTML = products.map(p => {
+            const stockClass = p.quantidade <= 5 ? 'status-low' : (p.quantidade <= 15 ? 'status-med' : 'status-high');
+            return `
+            <div class="product-item" onclick="addToCart(${p.id_produto})">
+                <div>
+                    <div class="product-name">${p.nome}</div>
+                    <div style="font-size: 0.8rem; color: var(--text-muted);">${p.categoria || 'Sem categoria'}</div>
+                </div>
+                <div class="product-meta">
+                    <div class="product-price">R$ ${Number(p.preco).toFixed(2)}</div>
+                    <div class="product-stock ${stockClass}">${p.quantidade} un</div>
+                </div>
+            </div>
+        `}).join('');
+    }
+
+    function addToCart(productId) {
+        const product = allProducts.find(p => p.id_produto === productId);
+        if (!product) return;
+
+        if (product.quantidade <= 0) {
+            alert('Produto sem estoque!');
+            return;
+        }
+
+        const existingItem = cart.find(item => item.id === productId);
+        
+        if (existingItem) {
+            if (existingItem.qty >= product.quantidade) {
+                alert('Estoque máximo atingido para este item.');
+                return;
+            }
+            existingItem.qty++;
+        } else {
+            cart.push({
+                id: productId,
+                name: product.nome,
+                price: Number(product.preco),
+                qty: 1,
+                max: product.quantidade
+            });
+        }
+        
+        renderCart();
+    }
+
+    function removeFromCart(productId) {
+        cart = cart.filter(item => item.id !== productId);
+        renderCart();
+    }
+
+    function updateQty(productId, change) {
+        const item = cart.find(i => i.id === productId);
+        if (!item) return;
+
+        const newQty = item.qty + change;
+        
+        if (newQty <= 0) {
+            removeFromCart(productId);
+            return;
+        }
+        
+        if (newQty > item.max) {
+            alert('Quantidade excede o estoque disponível.');
+            return;
+        }
+
+        item.qty = newQty;
+        renderCart();
+    }
+
+    function renderCart() {
+        const container = document.getElementById('cartItems');
+        
+        if (cart.length === 0) {
+            container.innerHTML = `
+                <div style="text-align: center; color: var(--text-muted); margin-top: 40px;">
+                    <i class="fas fa-shopping-basket fa-3x" style="opacity: 0.3; margin-bottom: 16px;"></i>
+                    <p>Seu carrinho está vazio</p>
+                </div>`;
+        } else {
+            container.innerHTML = cart.map(item => `
+                <div class="cart-item">
+                    <div class="cart-item-info">
+                        <h4>${item.name}</h4>
+                        <div style="color: var(--accent-gold); font-weight: 600;">R$ ${(item.price * item.qty).toFixed(2)}</div>
+                    </div>
+                    <div class="cart-item-controls">
+                        <button class="qty-btn" onclick="updateQty(${item.id}, -1)">-</button>
+                        <span style="font-weight: 600; min-width: 20px; text-align: center;">${item.qty}</span>
+                        <button class="qty-btn" onclick="updateQty(${item.id}, 1)">+</button>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        updateCartTotals();
+    }
+
+    function updateCartTotals() {
+        const subtotal = cart.reduce((sum, item) => sum + (item.price * item.qty), 0);
+        const discountPercent = Number(document.getElementById('discountInput').value) || 0;
+        const discountValue = subtotal * (discountPercent / 100);
+        const total = subtotal - discountValue;
+
+        document.getElementById('subtotalValue').textContent = `R$ ${subtotal.toFixed(2)}`;
+        document.getElementById('totalValue').textContent = `R$ ${total.toFixed(2)}`;
+    }
+
+    function toggleDueDate() {
+        const paymentMethod = document.getElementById('paymentMethod').value;
+        const dueDateContainer = document.getElementById('dueDateContainer');
+        
+        if (paymentMethod === 'prazo') {
+            dueDateContainer.style.display = 'block';
+            // Set default due date to 30 days from now
+            const defaultDate = new Date();
+            defaultDate.setDate(defaultDate.getDate() + 30);
+            document.getElementById('dueDate').value = defaultDate.toISOString().split('T')[0];
+        } else {
+            dueDateContainer.style.display = 'none';
+        }
+    }
+
+    async function finalizeSale() {
+        if (cart.length === 0) {
+            alert('Adicione produtos ao carrinho primeiro.');
+            return;
+        }
+
+        const subtotal = cart.reduce((sum, item) => sum + (item.price * item.qty), 0);
+        const discountPercent = Number(document.getElementById('discountInput').value) || 0;
+        const discountValue = subtotal * (discountPercent / 100);
+        const total = subtotal - discountValue;
+        
+        const paymentMethod = document.getElementById('paymentMethod').value;
+        const dueDate = document.getElementById('dueDate').value;
+        
+        // Validação para pagamento à prazo
+        if (paymentMethod === 'prazo') {
+            if (!dueDate) {
+                alert('Por favor, informe a data de vencimento para pagamento à prazo.');
+                return;
+            }
+            if (!selectedClient) {
+                alert('Para venda à prazo é necessário selecionar um cliente.');
+                return;
+            }
+        }
+
+        const saleData = {
+            id_cliente: selectedClient ? selectedClient.id_cliente : null,
+            cliente_nome: selectedClient ? selectedClient.nome : null,
+            items: cart.map(i => ({ id_produto: i.id, quantidade: i.qty })),
+            discount_percent: discountPercent,
+            total: total,
+            forma_pagamento: paymentMethod,
+            data_vencimento: paymentMethod === 'prazo' ? dueDate : null,
+            observacao: ''
+        };
 
         try {
-            const res = await fetch('/api/vendas', {
+            const res = await fetch('/api/vendas', { 
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    id_cliente: clienteId,
-                    cliente_nome_manual: clienteNome,
-                    itens: itens,
-                    observacao: obs,
-                    desconto_percent: discount
-                })
+                body: JSON.stringify(saleData)
             });
 
             if (res.ok) {
-                showAlert('Venda realizada com sucesso!', true);
-                document.getElementById('saleForm').reset();
-                document.getElementById('itemsList').innerHTML = '';
-                addItemRow();
-                updatePreview();
-                selectedCliente = null;
-                document.getElementById('clienteDetails').style.display = 'none';
-                loadProdutos(); // Reload stock
+                const result = await res.json();
+                alert(`Venda #${result.id_venda} realizada com sucesso!\nTotal: R$ ${total.toFixed(2)}`);
+                cart = [];
+                renderCart();
+                loadProducts();
+                clearClientSelection();
+                document.getElementById('discountInput').value = 0;
             } else {
-                const data = await res.json();
-                showAlert(data.erro || 'Erro ao realizar venda', false);
+                const error = await res.json();
+                alert('Erro ao processar venda: ' + (error.erro || 'Erro desconhecido'));
             }
         } catch (err) {
             console.error(err);
-            showAlert('Erro de conexão', false);
+            alert('Erro de conexão ao processar venda.');
         }
-    });
-
-    // Init
-    loadProdutos();
-    loadClientes();
-    </script>
+    }
+</script>
 {% endblock %}

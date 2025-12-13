@@ -2,104 +2,172 @@
 
 {% block title %}Fornecedores - Tabacaria{% endblock %}
 
+{% block extra_css %}
+<link rel="stylesheet" href="https://cdn.datatables.net/1.13.5/css/jquery.dataTables.min.css">
+<style>
+    .dataTables_wrapper .dataTables_length, 
+    .dataTables_wrapper .dataTables_filter, 
+    .dataTables_wrapper .dataTables_info, 
+    .dataTables_wrapper .dataTables_processing, 
+    .dataTables_wrapper .dataTables_paginate {
+        color: var(--text-muted) !important;
+        margin-bottom: 16px;
+    }
+    .dataTables_wrapper .dataTables_filter input {
+        background: rgba(255,255,255,0.05);
+        border: 1px solid rgba(255,255,255,0.1);
+        color: var(--text-main);
+        border-radius: var(--radius-sm);
+        padding: 6px 12px;
+    }
+    table.dataTable tbody tr { background-color: transparent !important; }
+    table.dataTable tbody td { border-color: rgba(255,255,255,0.05) !important; }
+    
+    .supplier-layout {
+        display: grid;
+        grid-template-columns: 380px 1fr;
+        gap: 24px;
+        align-items: start;
+    }
+    @media (max-width: 1024px) {
+        .supplier-layout { grid-template-columns: 1fr; }
+    }
+</style>
+{% endblock %}
+
 {% block content %}
 <div class="page-header">
     <div class="page-title">
-        <h1>Fornecedores</h1>
-        <p>Gerenciamento de fornecedores</p>
+        <h1>Gerenciamento de Fornecedores</h1>
+        <p>Cadastre e gerencie seus fornecedores</p>
     </div>
-    <button class="btn btn-primary" onclick="abrirModalNovo()">
-        <i class="fas fa-plus"></i> Novo Fornecedor
-    </button>
 </div>
 
-<div class="panel">
-    <div style="margin-bottom: 20px;">
-        <input type="text" id="searchInput" placeholder="Buscar fornecedor..." style="max-width: 400px;" onkeyup="buscarFornecedores()">
+<div class="supplier-layout">
+    <!-- New Supplier Form -->
+    <div class="panel">
+        <h2>Novo Fornecedor</h2>
+        <form id="newSupplierForm">
+            <div class="form-group">
+                <label>Nome Fantasia *</label>
+                <input type="text" id="newNomeFantasia" required placeholder="Ex: Distribuidora ABC">
+            </div>
+            <div class="form-group">
+                <label>Razão Social</label>
+                <input type="text" id="newRazaoSocial" placeholder="Razão social completa">
+            </div>
+            <div class="form-group">
+                <label>CNPJ</label>
+                <input type="text" id="newCnpj" placeholder="00.000.000/0000-00">
+            </div>
+            <div class="form-group">
+                <label>Telefone *</label>
+                <input type="text" id="newTelefone" required placeholder="(00) 0000-0000">
+            </div>
+            <div class="form-group">
+                <label>Email</label>
+                <input type="email" id="newEmail" placeholder="contato@fornecedor.com">
+            </div>
+            <div class="form-group">
+                <label>Cidade/UF</label>
+                <div style="display: flex; gap: 8px;">
+                    <input type="text" id="newCidade" placeholder="Cidade" style="flex: 2;">
+                    <input type="text" id="newEstado" placeholder="UF" maxlength="2" style="flex: 1;">
+                </div>
+            </div>
+            <button type="submit" class="btn btn-primary" style="width: 100%">
+                <i class="fas fa-plus"></i> Cadastrar Fornecedor
+            </button>
+        </form>
     </div>
-    
-    <table id="tabelaFornecedores">
-        <thead>
-            <tr>
-                <th>Nome Fantasia</th>
-                <th>CNPJ</th>
-                <th>Telefone</th>
-                <th>Cidade</th>
-                <th>Status</th>
-                <th>Ações</th>
-            </tr>
-        </thead>
-        <tbody></tbody>
-    </table>
+
+    <!-- Suppliers Table -->
+    <div class="panel">
+        <h2>Fornecedores Cadastrados</h2>
+        <div style="overflow-x:auto">
+            <table id="tabelaFornecedores" class="display" style="width:100%">
+                <thead>
+                    <tr>
+                        <th>Fornecedor</th>
+                        <th>Contato</th>
+                        <th>Local</th>
+                        <th>Ações</th>
+                    </tr>
+                </thead>
+                <tbody id="tabela">
+                </tbody>
+            </table>
+        </div>
+    </div>
 </div>
 
-<!-- Modal Fornecedor -->
-<div class="modal" id="modalFornecedor">
+<!-- Edit Modal -->
+<div class="modal" id="modal-edicao">
     <div class="modal-content">
-        <h2 id="modalTitle">Novo Fornecedor</h2>
-        <form id="formFornecedor" onsubmit="salvarFornecedor(event)">
-            <input type="hidden" id="id_fornecedor">
+        <h3>Editar Fornecedor</h3>
+        <form id="form-edicao">
+            <input type="hidden" id="edit-id">
             
             <div class="form-group">
-                <label>Nome Fantasia*</label>
-                <input type="text" id="nome_fantasia" required>
+                <label>Nome Fantasia *</label>
+                <input type="text" id="edit-nome-fantasia" required>
             </div>
             
             <div class="form-group">
                 <label>Razão Social</label>
-                <input type="text" id="razao_social">
+                <input type="text" id="edit-razao-social">
             </div>
             
             <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
                 <div class="form-group">
                     <label>CNPJ</label>
-                    <input type="text" id="cnpj">
+                    <input type="text" id="edit-cnpj">
                 </div>
                 <div class="form-group">
                     <label>IE</label>
-                    <input type="text" id="ie">
+                    <input type="text" id="edit-ie">
                 </div>
             </div>
             
             <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
                 <div class="form-group">
-                    <label>Telefone</label>
-                    <input type="text" id="telefone">
+                    <label>Telefone *</label>
+                    <input type="text" id="edit-telefone" required>
                 </div>
                 <div class="form-group">
                     <label>Email</label>
-                    <input type="email" id="email">
+                    <input type="email" id="edit-email">
                 </div>
             </div>
             
             <div class="form-group">
                 <label>Endereço</label>
-                <input type="text" id="endereco">
+                <input type="text" id="edit-endereco">
             </div>
             
             <div style="display: grid; grid-template-columns: 2fr 1fr 1fr; gap: 16px;">
                 <div class="form-group">
                     <label>Cidade</label>
-                    <input type="text" id="cidade">
+                    <input type="text" id="edit-cidade">
                 </div>
                 <div class="form-group">
                     <label>Estado</label>
-                    <input type="text" id="estado" maxlength="2">
+                    <input type="text" id="edit-estado" maxlength="2">
                 </div>
                 <div class="form-group">
                     <label>CEP</label>
-                    <input type="text" id="cep">
+                    <input type="text" id="edit-cep">
                 </div>
             </div>
             
             <div class="form-group">
                 <label>Observações</label>
-                <textarea id="observacoes" rows="3"></textarea>
+                <textarea id="edit-observacoes" rows="3"></textarea>
             </div>
             
-            <div style="display: flex; gap: 12px; justify-content: flex-end; margin-top: 24px;">
+            <div style="text-align: right; margin-top: 24px; display: flex; justify-content: flex-end; gap: 12px;">
                 <button type="button" class="btn btn-secondary" onclick="fecharModal()">Cancelar</button>
-                <button type="submit" class="btn btn-primary">Salvar</button>
+                <button type="submit" class="btn btn-primary">Salvar Alterações</button>
             </div>
         </form>
     </div>
@@ -107,160 +175,178 @@
 {% endblock %}
 
 {% block extra_js %}
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script src="https://cdn.datatables.net/1.13.5/js/jquery.dataTables.min.js"></script>
 <script>
-let fornecedores = [];
+    let tabelaDT;
 
-document.addEventListener('DOMContentLoaded', () => {
-    carregarFornecedores();
-});
+    async function carregarFornecedores() {
+        try {
+            const res = await fetch('/api/fornecedores');
+            if (!res.ok) throw new Error('Erro ao carregar fornecedores');
+            const fornecedores = await res.json();
 
-async function carregarFornecedores() {
-    try {
-        const response = await fetch('/api/fornecedores');
-        fornecedores = await response.json();
-        renderizarTabela(fornecedores);
-    } catch (error) {
-        console.error('Erro ao carregar fornecedores:', error);
-        alert('Erro ao carregar fornecedores');
-    }
-}
-
-function renderizarTabela(dados) {
-    const tbody = document.querySelector('#tabelaFornecedores tbody');
-    tbody.innerHTML = '';
+            if ($.fn.DataTable.isDataTable('#tabelaFornecedores')) {
+                $('#tabelaFornecedores').DataTable().destroy();
+            }
     
-    dados.forEach(f => {
-        const tr = document.createElement('tr');
-        tr.innerHTML = `
-            <td>${f.nome_fantasia}</td>
-            <td>${f.cnpj || '-'}</td>
-            <td>${f.telefone || '-'}</td>
-            <td>${f.cidade || '-'}</td>
-            <td>${f.ativo ? '<span style="color: #10b981;">Ativo</span>' : '<span style="color: #ef4444;">Inativo</span>'}</td>
-            <td>
-                <button class="btn btn-info" onclick="editarFornecedor(${f.id_fornecedor})" style="padding: 6px 12px; font-size: 0.85rem;">
-                    <i class="fas fa-edit"></i>
-                </button>
-                <button class="btn btn-danger" onclick="deletarFornecedor(${f.id_fornecedor})" style="padding: 6px 12px; font-size: 0.85rem;">
-                    <i class="fas fa-trash"></i>
-                </button>
-            </td>
-        `;
-        tbody.appendChild(tr);
+            const tbody = document.getElementById('tabela');
+            tbody.innerHTML = '';
+    
+            fornecedores.forEach(f => {
+                tbody.innerHTML += `
+                    <tr>
+                        <td>
+                            <div style="font-weight: 600;">${f.nome_fantasia}</div>
+                            <div style="font-size: 0.8rem; color: var(--text-muted);">${f.cnpj || ''}</div>
+                        </td>
+                        <td>
+                            <div>${f.telefone || '-'}</div>
+                            <div style="font-size: 0.8rem; color: var(--text-muted);">${f.email || ''}</div>
+                        </td>
+                        <td>${f.cidade ? `${f.cidade}/${f.estado||''}` : '-'}</td>
+                        <td>
+                            <div style="display: flex; gap: 8px;">
+                                <button class="btn btn-secondary" style="padding: 6px 10px;" onclick="editarFornecedor(${f.id_fornecedor})" title="Editar"><i class="fas fa-edit"></i></button>
+                                <button class="btn btn-danger" style="padding: 6px 10px;" onclick="excluirFornecedor(${f.id_fornecedor})" title="Excluir"><i class="fas fa-trash"></i></button>
+                            </div>
+                        </td>
+                    </tr>
+                `;
+            });
+
+            tabelaDT = $('#tabelaFornecedores').DataTable({
+                language: { url: '//cdn.datatables.net/plug-ins/1.13.5/i18n/pt-BR.json' },
+                pageLength: 10,
+                lengthMenu: [[10, 25, 50, -1], [10, 25, 50, "Todos"]],
+                order: [[0, 'asc']]
+            });
+    
+        } catch (err) {
+            console.error(err);
+            document.getElementById('tabela').innerHTML = 
+                '<tr><td colspan="4" style="text-align:center;color:var(--accent-primary)">Erro ao carregar fornecedores</td></tr>';
+        }
+    }
+
+    document.getElementById('newSupplierForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        
+        const dados = {
+            nome_fantasia: document.getElementById('newNomeFantasia').value,
+            razao_social: document.getElementById('newRazaoSocial').value,
+            cnpj: document.getElementById('newCnpj').value,
+            telefone: document.getElementById('newTelefone').value,
+            email: document.getElementById('newEmail').value,
+            cidade: document.getElementById('newCidade').value,
+            estado: document.getElementById('newEstado').value
+        };
+
+        try {
+            const res = await fetch('/api/fornecedores', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(dados)
+            });
+
+            if (res.ok) {
+                alert('Fornecedor cadastrado com sucesso!');
+                e.target.reset();
+                carregarFornecedores();
+            } else {
+                alert('Erro ao cadastrar fornecedor');
+            }
+        } catch (err) {
+            console.error(err);
+            alert('Erro de conexão');
+        }
     });
-}
 
-function buscarFornecedores() {
-    const termo = document.getElementById('searchInput').value.toLowerCase();
-    const filtrados = fornecedores.filter(f => 
-        f.nome_fantasia.toLowerCase().includes(termo) ||
-        (f.cnpj && f.cnpj.includes(termo))
-    );
-    renderizarTabela(filtrados);
-}
-
-function abrirModalNovo() {
-    document.getElementById('modalTitle').textContent = 'Novo Fornecedor';
-    document.getElementById('formFornecedor').reset();
-    document.getElementById('id_fornecedor').value = '';
-    document.getElementById('modalFornecedor').classList.add('active');
-}
-
-async function editarFornecedor(id) {
-    try {
-        const response = await fetch(`/api/fornecedores/${id}`);
-        const f = await response.json();
-        
-        document.getElementById('modalTitle').textContent = 'Editar Fornecedor';
-        document.getElementById('id_fornecedor').value = f.id_fornecedor;
-        document.getElementById('nome_fantasia').value = f.nome_fantasia || '';
-        document.getElementById('razao_social').value = f.razao_social || '';
-        document.getElementById('cnpj').value = f.cnpj || '';
-        document.getElementById('ie').value = f.ie || '';
-        document.getElementById('telefone').value = f.telefone || '';
-        document.getElementById('email').value = f.email || '';
-        document.getElementById('endereco').value = f.endereco || '';
-        document.getElementById('cidade').value = f.cidade || '';
-        document.getElementById('estado').value = f.estado || '';
-        document.getElementById('cep').value = f.cep || '';
-        document.getElementById('observacoes').value = f.observacoes || '';
-        
-        document.getElementById('modalFornecedor').classList.add('active');
-    } catch (error) {
-        console.error('Erro ao carregar fornecedor:', error);
-        alert('Erro ao carregar fornecedor');
-    }
-}
-
-async function salvarFornecedor(event) {
-    event.preventDefault();
+    async function editarFornecedor(id) {
+        try {
+            const res = await fetch(`/api/fornecedores/${id}`);
+            if (!res.ok) throw new Error('Fornecedor não encontrado');
+            const f = await res.json();
     
-    const id = document.getElementById('id_fornecedor').value;
-    const dados = {
-        nome_fantasia: document.getElementById('nome_fantasia').value,
-        razao_social: document.getElementById('razao_social').value,
-        cnpj: document.getElementById('cnpj').value,
-        ie: document.getElementById('ie').value,
-        telefone: document.getElementById('telefone').value,
-        email: document.getElementById('email').value,
-        endereco: document.getElementById('endereco').value,
-        cidade: document.getElementById('cidade').value,
-        estado: document.getElementById('estado').value,
-        cep: document.getElementById('cep').value,
-        observacoes: document.getElementById('observacoes').value,
-        ativo: 1
-    };
+            document.getElementById('edit-id').value = f.id_fornecedor;
+            document.getElementById('edit-nome-fantasia').value = f.nome_fantasia || '';
+            document.getElementById('edit-razao-social').value = f.razao_social || '';
+            document.getElementById('edit-cnpj').value = f.cnpj || '';
+            document.getElementById('edit-ie').value = f.ie || '';
+            document.getElementById('edit-telefone').value = f.telefone || '';
+            document.getElementById('edit-email').value = f.email || '';
+            document.getElementById('edit-endereco').value = f.endereco || '';
+            document.getElementById('edit-cidade').value = f.cidade || '';
+            document.getElementById('edit-estado').value = f.estado || '';
+            document.getElementById('edit-cep').value = f.cep || '';
+            document.getElementById('edit-observacoes').value = f.observacoes || '';
     
-    try {
-        const url = id ? `/api/fornecedores/${id}` : '/api/fornecedores';
-        const method = id ? 'PUT' : 'POST';
-        
-        const response = await fetch(url, {
-            method: method,
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(dados)
-        });
-        
-        const result = await response.json();
-        
-        if (response.ok) {
-            alert(result.mensagem);
-            fecharModal();
-            carregarFornecedores();
-        } else {
-            alert(result.erro || 'Erro ao salvar');
+            document.getElementById('modal-edicao').classList.add('active');
+        } catch (err) {
+            console.error(err);
+            alert('Erro ao carregar dados do fornecedor');
         }
-    } catch (error) {
-        console.error('Erro ao salvar:', error);
-        alert('Erro ao salvar fornecedor');
     }
-}
 
-async function deletarFornecedor(id) {
-    if (!confirm('Deseja realmente excluir este fornecedor?')) return;
-    
-    try {
-        const response = await fetch(`/api/fornecedores/${id}`, { method: 'DELETE' });
-        const result = await response.json();
+    function fecharModal() {
+        document.getElementById('modal-edicao').classList.remove('active');
+    }
+
+    document.getElementById('form-edicao').addEventListener('submit', async (e) => {
+        e.preventDefault();
         
-        if (response.ok) {
-            alert(result.mensagem);
-            carregarFornecedores();
-        } else {
-            alert(result.erro || 'Erro ao excluir');
+        const id = document.getElementById('edit-id').value;
+        const dados = {
+            nome_fantasia: document.getElementById('edit-nome-fantasia').value,
+            razao_social: document.getElementById('edit-razao-social').value,
+            cnpj: document.getElementById('edit-cnpj').value,
+            ie: document.getElementById('edit-ie').value,
+            telefone: document.getElementById('edit-telefone').value,
+            email: document.getElementById('edit-email').value,
+            endereco: document.getElementById('edit-endereco').value,
+            cidade: document.getElementById('edit-cidade').value,
+            estado: document.getElementById('edit-estado').value,
+            cep: document.getElementById('edit-cep').value,
+            observacoes: document.getElementById('edit-observacoes').value
+        };
+
+        try {
+            const res = await fetch(`/api/fornecedores/${id}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(dados)
+            });
+
+            if (res.ok) {
+                alert('Fornecedor atualizado com sucesso!');
+                fecharModal();
+                carregarFornecedores();
+            } else {
+                alert('Erro ao atualizar fornecedor');
+            }
+        } catch (err) {
+            console.error(err);
+            alert('Erro de conexão');
         }
-    } catch (error) {
-        console.error('Erro ao excluir:', error);
-        alert('Erro ao excluir fornecedor');
+    });
+
+    async function excluirFornecedor(id) {
+        if (confirm('Tem certeza que deseja excluir este fornecedor?')) {
+            try {
+                const res = await fetch(`/api/fornecedores/${id}`, { method: 'DELETE' });
+                if (res.ok) {
+                    alert('Fornecedor excluído com sucesso!');
+                    carregarFornecedores();
+                } else {
+                    alert('Erro ao excluir fornecedor');
+                }
+            } catch (err) {
+                console.error(err);
+                alert('Erro de conexão');
+            }
+        }
     }
-}
-
-function fecharModal() {
-    document.getElementById('modalFornecedor').classList.remove('active');
-}
-
-document.getElementById('modalFornecedor').addEventListener('click', (e) => {
-    if (e.target.id === 'modalFornecedor') fecharModal();
-});
+    
+    document.addEventListener('DOMContentLoaded', carregarFornecedores);
 </script>
 {% endblock %}

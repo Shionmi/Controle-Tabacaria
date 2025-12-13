@@ -1,20 +1,284 @@
 {% extends "base.html" %}
+
 {% block title %}Inventário - Tabacaria{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="https://cdn.datatables.net/1.13.5/css/jquery.dataTables.min.css">
+<style>
+    .dataTables_wrapper .dataTables_length, 
+    .dataTables_wrapper .dataTables_filter, 
+    .dataTables_wrapper .dataTables_info, 
+    .dataTables_wrapper .dataTables_processing, 
+    .dataTables_wrapper .dataTables_paginate {
+        color: var(--text-muted) !important;
+        margin-bottom: 16px;
+    }
+    .dataTables_wrapper .dataTables_filter input {
+        background: rgba(255,255,255,0.05);
+        border: 1px solid rgba(255,255,255,0.1);
+        color: var(--text-main);
+        border-radius: var(--radius-sm);
+        padding: 6px 12px;
+    }
+    table.dataTable tbody tr { background-color: transparent !important; }
+    table.dataTable tbody td { border-color: rgba(255,255,255,0.05) !important; }
+    
+    .status-badge {
+        display: inline-block;
+        padding: 4px 12px;
+        border-radius: 12px;
+        font-size: 0.75rem;
+        font-weight: 600;
+        text-transform: uppercase;
+    }
+    .status-em_andamento { background: rgba(234, 179, 8, 0.2); color: #facc15; }
+    .status-concluido { background: rgba(34, 197, 94, 0.2); color: #4ade80; }
+    
+    .diferenca-positiva { color: #10b981; }
+    .diferenca-negativa { color: #ef4444; }
+</style>
+{% endblock %}
+
 {% block content %}
 <div class="page-header">
     <div class="page-title">
         <h1>Inventário</h1>
-        <p>Contagem física e ajustes de estoque</p>
+        <p>Contagem física e ajuste de estoque</p>
     </div>
-    <button class="btn btn-primary" onclick="alert('Funcionalidade em desenvolvimento')">
+    <button class="btn btn-primary" onclick="novoInventario()">
         <i class="fas fa-plus"></i> Novo Inventário
     </button>
 </div>
+
 <div class="panel">
-    <p style="text-align: center; padding: 60px 20px; color: var(--text-muted);">
-        <i class="fas fa-clipboard-list" style="font-size: 3rem; display: block; margin-bottom: 20px; opacity: 0.3;"></i>
-        Módulo de Inventário em desenvolvimento.<br>
-        API backend já disponível em /api/inventarios
-    </p>
+    <h2>Inventários</h2>
+    <div style="overflow-x:auto">
+        <table id="tabelaInventarios" class="display" style="width:100%">
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Data Início</th>
+                    <th>Responsável</th>
+                    <th>Status</th>
+                    <th>Ações</th>
+                </tr>
+            </thead>
+            <tbody id="tabela-inventarios">
+            </tbody>
+        </table>
+    </div>
 </div>
+
+<!-- Items Panel (shown when viewing inventory) -->
+<div class="panel" id="panel-items" style="display: none; margin-top: 24px;">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+        <h2 id="titulo-inventario">Itens do Inventário</h2>
+        <div style="display: flex; gap: 12px;">
+            <button class="btn btn-secondary" onclick="fecharInventario()">
+                <i class="fas fa-times"></i> Fechar
+            </button>
+            <button class="btn btn-primary" onclick="finalizarInventario()" id="btn-finalizar">
+                <i class="fas fa-check"></i> Finalizar Inventário
+            </button>
+        </div>
+    </div>
+    <div style="overflow-x:auto">
+        <table id="tabelaItems" class="display" style="width:100%">
+            <thead>
+                <tr>
+                    <th>Produto</th>
+                    <th>Qtd Sistema</th>
+                    <th>Qtd Contada</th>
+                    <th>Diferença</th>
+                    <th>Ação</th>
+                </tr>
+            </thead>
+            <tbody id="tabela-items">
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script src="https://cdn.datatables.net/1.13.5/js/jquery.dataTables.min.js"></script>
+<script>
+    let tabelaDT, tabelaItemsDT;
+    let inventarioAtual = null;
+
+    async function carregarInventarios() {
+        try {
+            const res = await fetch('/api/inventarios');
+            if (!res.ok) throw new Error('Erro ao carregar inventários');
+            const inventarios = await res.json();
+
+            if ($.fn.DataTable.isDataTable('#tabelaInventarios')) {
+                $('#tabelaInventarios').DataTable().destroy();
+            }
+    
+            const tbody = document.getElementById('tabela-inventarios');
+            tbody.innerHTML = '';
+    
+            inventarios.forEach(inv => {
+                const dataInicio = inv.data_inicio ? new Date(inv.data_inicio).toLocaleDateString('pt-BR') : '-';
+                const statusClass = `status-${inv.status}`;
+                const statusText = inv.status === 'em_andamento' ? 'Em Andamento' : 'Concluído';
+                
+                tbody.innerHTML += `
+                    <tr>
+                        <td>${inv.id_inventario}</td>
+                        <td>${dataInicio}</td>
+                        <td>${inv.responsavel || '-'}</td>
+                        <td><span class="status-badge ${statusClass}">${statusText}</span></td>
+                        <td>
+                            <button class="btn btn-primary" style="padding: 6px 10px;" onclick="abrirInventario(${inv.id_inventario})" title="Ver Items">
+                                <i class="fas fa-eye"></i>
+                            </button>
+                        </td>
+                    </tr>
+                `;
+            });
+
+            tabelaDT = $('#tabelaInventarios').DataTable({
+                language: { url: '//cdn.datatables.net/plug-ins/1.13.5/i18n/pt-BR.json' },
+                pageLength: 10,
+                order: [[0, 'desc']]
+            });
+    
+        } catch (err) {
+            console.error(err);
+            document.getElementById('tabela-inventarios').innerHTML = 
+                '<tr><td colspan="5" style="text-align:center;color:var(--accent-primary)">Erro ao carregar inventários</td></tr>';
+        }
+    }
+
+    async function novoInventario() {
+        const responsavel = prompt('Nome do responsável pela contagem:');
+        if (!responsavel) return;
+        
+        try {
+            const res = await fetch('/api/inventarios', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ responsavel })
+            });
+
+            if (res.ok) {
+                const data = await res.json();
+                alert('Inventário criado com sucesso!');
+                carregarInventarios();
+                abrirInventario(data.id_inventario);
+            } else {
+                alert('Erro ao criar inventário');
+            }
+        } catch (err) {
+            console.error(err);
+            alert('Erro de conexão');
+        }
+    }
+
+    async function abrirInventario(id) {
+        inventarioAtual = id;
+        
+        try {
+            const res = await fetch(`/api/inventarios/${id}/items`);
+            if (!res.ok) throw new Error('Erro ao carregar items');
+            const items = await res.json();
+
+            document.getElementById('panel-items').style.display = 'block';
+            document.getElementById('titulo-inventario').textContent = `Inventário #${id} - Itens`;
+            
+            if ($.fn.DataTable.isDataTable('#tabelaItems')) {
+                $('#tabelaItems').DataTable().destroy();
+            }
+    
+            const tbody = document.getElementById('tabela-items');
+            tbody.innerHTML = '';
+    
+            items.forEach(item => {
+                const contada = item.quantidade_contada !== null ? item.quantidade_contada : '';
+                const diferenca = item.diferenca !== null ? item.diferenca : '-';
+                const diferencaClass = item.diferenca > 0 ? 'diferenca-positiva' : item.diferenca < 0 ? 'diferenca-negativa' : '';
+                
+                tbody.innerHTML += `
+                    <tr>
+                        <td>${item.produto_nome}</td>
+                        <td>${item.quantidade_sistema}</td>
+                        <td>
+                            <input type="number" 
+                                   value="${contada}" 
+                                   onchange="atualizarContagem(${item.id_item}, this.value)"
+                                   style="width: 80px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); color: var(--text-main); padding: 4px; border-radius: 4px;"
+                                   min="0">
+                        </td>
+                        <td class="${diferencaClass}" style="font-weight: 600;">${diferenca !== '-' ? (diferenca > 0 ? '+' : '') + diferenca : diferenca}</td>
+                        <td>
+                            <button class="btn btn-primary" style="padding: 4px 8px;" onclick="atualizarContagem(${item.id_item}, document.querySelector('input[onchange*=\\'${item.id_item}\\']').value)">
+                                <i class="fas fa-save"></i>
+                            </button>
+                        </td>
+                    </tr>
+                `;
+            });
+
+            tabelaItemsDT = $('#tabelaItems').DataTable({
+                language: { url: '//cdn.datatables.net/plug-ins/1.13.5/i18n/pt-BR.json' },
+                pageLength: 25,
+                order: [[0, 'asc']]
+            });
+    
+        } catch (err) {
+            console.error(err);
+            alert('Erro ao carregar items do inventário');
+        }
+    }
+
+    async function atualizarContagem(idItem, qtdContada) {
+        try {
+            const res = await fetch(`/api/inventarios/${inventarioAtual}/items/${idItem}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ quantidade_contada: parseFloat(qtdContada) || 0 })
+            });
+
+            if (res.ok) {
+                abrirInventario(inventarioAtual); // Reload
+            } else {
+                alert('Erro ao atualizar contagem');
+            }
+        } catch (err) {
+            console.error(err);
+            alert('Erro de conexão');
+        }
+    }
+
+    async function finalizarInventario() {
+        if (!confirm('Finalizar inventário? Isso ajustará o estoque baseado nas diferenças.')) return;
+        
+        try {
+            const res = await fetch(`/api/inventarios/${inventarioAtual}/finalizar`, {
+                method: 'POST'
+            });
+
+            if (res.ok) {
+                alert('Inventário finalizado! Estoque ajustado.');
+                fecharInventario();
+                carregarInventarios();
+            } else {
+                alert('Erro ao finalizar inventário');
+            }
+        } catch (err) {
+            console.error(err);
+            alert('Erro de conexão');
+        }
+    }
+
+    function fecharInventario() {
+        document.getElementById('panel-items').style.display = 'none';
+        inventarioAtual = null;
+    }
+    
+    document.addEventListener('DOMContentLoaded', carregarInventarios);
+</script>
 {% endblock %}

@@ -1,17 +1,272 @@
 {% extends "base.html" %}
+
 {% block title %}Fluxo de Caixa - Tabacaria{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="https://cdn.datatables.net/1.13.5/css/jquery.dataTables.min.css">
+<style>
+    .dataTables_wrapper .dataTables_length, 
+    .dataTables_wrapper .dataTables_filter, 
+    .dataTables_wrapper .dataTables_info, 
+    .dataTables_wrapper .dataTables_processing, 
+    .dataTables_wrapper .dataTables_paginate {
+        color: var(--text-muted) !important;
+        margin-bottom: 16px;
+    }
+    .dataTables_wrapper .dataTables_filter input {
+        background: rgba(255,255,255,0.05);
+        border: 1px solid rgba(255,255,255,0.1);
+        color: var(--text-main);
+        border-radius: var(--radius-sm);
+        padding: 6px 12px;
+    }
+    table.dataTable tbody tr { background-color: transparent !important; }
+    table.dataTable tbody td { border-color: rgba(255,255,255,0.05) !important; }
+    
+    .fluxo-layout {
+        display: grid;
+        grid-template-columns: 380px 1fr;
+        gap: 24px;
+        align-items: start;
+    }
+    @media (max-width: 1024px) {
+        .fluxo-layout { grid-template-columns: 1fr; }
+    }
+    
+    .saldo-card {
+        padding: 24px;
+        background: linear-gradient(145deg, rgba(59, 130, 246, 0.1), rgba(59, 130, 246, 0.05));
+        border: 1px solid rgba(59, 130, 246, 0.2);
+        border-radius: var(--radius-md);
+        text-align: center;
+        margin-bottom: 24px;
+    }
+    
+    .saldo-card h3 {
+        font-size: 0.9rem;
+        color: var(--text-muted);
+        margin-bottom: 8px;
+    }
+    
+    .saldo-card .valor {
+        font-size: 2rem;
+        font-weight: 700;
+        color: var(--text-main);
+    }
+    
+    .tipo-entrada { color: #10b981; }
+    .tipo-saida { color: #ef4444; }
+</style>
+{% endblock %}
+
 {% block content %}
 <div class="page-header">
     <div class="page-title">
         <h1>Fluxo de Caixa</h1>
-        <p>Movimentações financeiras e saldo</p>
+        <p>Controle de entradas e saídas</p>
     </div>
 </div>
-<div class="panel">
-    <p style="text-align: center; padding: 60px 20px; color: var(--text-muted);">
-        <i class="fas fa-cash-register" style="font-size: 3rem; display: block; margin-bottom: 20px; opacity: 0.3;"></i>
-        Módulo de Fluxo de Caixa em desenvolvimento.<br>
-        API backend já disponível em /api/fluxo_caixa
-    </p>
+
+<div class="fluxo-layout">
+    <!-- New Entry Form -->
+    <div class="panel">
+        <h2>Nova Movimentação</h2>
+        <form id="newFluxoForm">
+            <div class="form-group">
+                <label>Tipo *</label>
+                <select id="newTipo" required>
+                    <option value="entrada">Entrada</option>
+                    <option value="saida">Saída</option>
+                </select>
+            </div>
+            
+            <div class="form-group">
+                <label>Categoria</label>
+                <input type="text" id="newCategoria" placeholder="Ex: Vendas, Compras, Despesas">
+            </div>
+            
+            <div class="form-group">
+                <label>Descrição *</label>
+                <input type="text" id="newDescricao" required placeholder="Descrição da movimentação">
+            </div>
+            
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+                <div class="form-group">
+                    <label>Valor *</label>
+                    <input type="number" id="newValor" required step="0.01" min="0" placeholder="0.00">
+                </div>
+                <div class="form-group">
+                    <label>Data *</label>
+                    <input type="date" id="newData" required>
+                </div>
+            </div>
+            
+            <button type="submit" class="btn btn-primary" style="width: 100%">
+                <i class="fas fa-plus"></i> Registrar Movimentação
+            </button>
+        </form>
+    </div>
+
+    <!-- Cash Flow Table -->
+    <div class="panel">
+        <div class="saldo-card">
+            <h3>Saldo do Período</h3>
+            <div class="valor" id="saldo-periodo">R$ 0,00</div>
+        </div>
+        
+        <h2>Movimentações</h2>
+        <div style="margin-bottom: 16px; display: flex; gap: 8px; flex-wrap: wrap;">
+            <input type="month" id="filtro-mes" class="form-control" style="width: 200px;">
+            <button class="btn btn-secondary" onclick="carregarFluxo()">Filtrar</button>
+        </div>
+        <div style="overflow-x:auto">
+            <table id="tabelaFluxo" class="display" style="width:100%">
+                <thead>
+                    <tr>
+                        <th>Data</th>
+                        <th>Tipo</th>
+                        <th>Categoria</th>
+                        <th>Descrição</th>
+                        <th>Valor</th>
+                        <th>Ações</th>
+                    </tr>
+                </thead>
+                <tbody id="tabela">
+                </tbody>
+            </table>
+        </div>
+    </div>
 </div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script src="https://cdn.datatables.net/1.13.5/js/jquery.dataTables.min.js"></script>
+<script>
+    let tabelaDT;
+
+    async function init() {
+        // Set current month
+        const hoje = new Date();
+        const mesAtual = hoje.toISOString().substr(0, 7);
+        document.getElementById('filtro-mes').value = mesAtual;
+        document.getElementById('newData').valueAsDate = hoje;
+        
+        carregarFluxo();
+    }
+
+    async function carregarFluxo() {
+        try {
+            const mes = document.getElementById('filtro-mes').value;
+            const res = await fetch(`/api/fluxo_caixa?mes=${mes}`);
+            if (!res.ok) throw new Error('Erro ao carregar fluxo');
+            const movimentos = await res.json();
+
+            if ($.fn.DataTable.isDataTable('#tabelaFluxo')) {
+                $('#tabelaFluxo').DataTable().destroy();
+            }
+    
+            const tbody = document.getElementById('tabela');
+            tbody.innerHTML = '';
+            
+            let totalEntradas = 0;
+            let totalSaidas = 0;
+    
+            movimentos.forEach(m => {
+                const data = m.data_movimentacao ? new Date(m.data_movimentacao).toLocaleDateString('pt-BR') : '-';
+                const valor = parseFloat(m.valor || 0);
+                
+                if (m.tipo === 'entrada') {
+                    totalEntradas += valor;
+                } else {
+                    totalSaidas += valor;
+                }
+                
+                tbody.innerHTML += `
+                    <tr>
+                        <td>${data}</td>
+                        <td><span class="tipo-${m.tipo}">${m.tipo === 'entrada' ? 'Entrada' : 'Saída'}</span></td>
+                        <td>${m.categoria || '-'}</td>
+                        <td>${m.descricao}</td>
+                        <td class="tipo-${m.tipo}" style="font-weight: 600;">
+                            ${m.tipo === 'entrada' ? '+' : '-'} R$ ${valor.toFixed(2)}
+                        </td>
+                        <td>
+                            <button class="btn btn-danger" style="padding: 6px 10px;" onclick="excluirMovimento(${m.id_fluxo})" title="Excluir">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                        </td>
+                    </tr>
+                `;
+            });
+            
+            const saldo = totalEntradas - totalSaidas;
+            const saldoEl = document.getElementById('saldo-periodo');
+            saldoEl.textContent = `R$ ${Math.abs(saldo).toFixed(2)}`;
+            saldoEl.style.color = saldo >= 0 ? '#10b981' : '#ef4444';
+
+            tabelaDT = $('#tabelaFluxo').DataTable({
+                language: { url: '//cdn.datatables.net/plug-ins/1.13.5/i18n/pt-BR.json' },
+                pageLength: 10,
+                order: [[0, 'desc']]
+            });
+    
+        } catch (err) {
+            console.error(err);
+            document.getElementById('tabela').innerHTML = 
+                '<tr><td colspan="6" style="text-align:center;color:var(--accent-primary)">Erro ao carregar fluxo</td></tr>';
+        }
+    }
+
+    document.getElementById('newFluxoForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        
+        const dados = {
+            tipo: document.getElementById('newTipo').value,
+            categoria: document.getElementById('newCategoria').value,
+            descricao: document.getElementById('newDescricao').value,
+            valor: parseFloat(document.getElementById('newValor').value),
+            data_movimentacao: document.getElementById('newData').value
+        };
+
+        try {
+            const res = await fetch('/api/fluxo_caixa', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(dados)
+            });
+
+            if (res.ok) {
+                alert('Movimentação registrada com sucesso!');
+                e.target.reset();
+                document.getElementById('newData').valueAsDate = new Date();
+                carregarFluxo();
+            } else {
+                alert('Erro ao registrar movimentação');
+            }
+        } catch (err) {
+            console.error(err);
+            alert('Erro de conexão');
+        }
+    });
+
+    async function excluirMovimento(id) {
+        if (confirm('Tem certeza que deseja excluir esta movimentação?')) {
+            try {
+                const res = await fetch(`/api/fluxo_caixa/${id}`, { method: 'DELETE' });
+                if (res.ok) {
+                    alert('Movimentação excluída com sucesso!');
+                    carregarFluxo();
+                } else {
+                    alert('Erro ao excluir movimentação');
+                }
+            } catch (err) {
+                console.error(err);
+                alert('Erro de conexão');
+            }
+        }
+    }
+    
+    document.addEventListener('DOMContentLoaded', init);
+</script>
 {% endblock %}

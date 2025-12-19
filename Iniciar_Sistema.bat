@@ -108,7 +108,11 @@ echo.
 timeout /t 3 /nobreak >nul
 
 :: Iniciar o sistema
-start "JM Tabacaria - Servidor" powershell -ExecutionPolicy Bypass -NoExit -Command "cd '%~dp0'; .\.venv\Scripts\Activate.ps1; cls; Write-Host ''; Write-Host '========================================================================' -ForegroundColor Green; Write-Host '                    JM TABACARIA - SISTEMA ATIVO' -ForegroundColor Green; Write-Host '========================================================================' -ForegroundColor Green; Write-Host ''; Write-Host '  O sistema esta funcionando!' -ForegroundColor Cyan; Write-Host ''; Write-Host '  MANTENHA ESTA JANELA ABERTA enquanto usa o sistema.' -ForegroundColor Yellow; Write-Host '  Para fechar, pressione Ctrl+C ou feche esta janela.' -ForegroundColor Yellow; Write-Host ''; Write-Host '========================================================================' -ForegroundColor Green; Write-Host ''; python app.py"
+echo.
+echo   Iniciando o sistema em segundo plano...
+echo.
+
+start "" "%~dp0.venv\Scripts\pythonw.exe" "%~dp0app.py"
 
 timeout /t 2 /nobreak >nul
 cls
@@ -117,16 +121,14 @@ echo ========================================================================
 echo                      SISTEMA INICIADO!
 echo ========================================================================
 echo.
-echo   O navegador vai abrir automaticamente.
-echo   Uma janela AZUL mostra o endereco para acessar pelo celular.
+echo   O sistema esta rodando em SEGUNDO PLANO.
+echo   Verifique o icone na bandeja do sistema (perto do relogio).
 echo.
-echo   Para FECHAR o sistema:
-echo   - Feche a janela azul (PowerShell)
-echo   - Ou pressione Ctrl+C na janela azul
+echo   O navegador abrira automaticamente.
 echo.
-echo   Voce pode fechar ESTA janela agora.
+echo   Voce pode fechar esta janela.
 echo.
 echo ========================================================================
 echo.
-pause
+timeout /t 5
 exit

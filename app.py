@@ -21,11 +21,18 @@ import logging
 from functools import wraps
 from datetime import datetime, timedelta
 import re
+import webbrowser
+import threading
+import pystray
+from PIL import Image
+from pystray import MenuItem as item
 
 # Fix Windows encoding issues
 if sys.platform == 'win32':
-    sys.stdout.reconfigure(encoding='utf-8')
-    sys.stderr.reconfigure(encoding='utf-8')
+    if sys.stdout:
+        sys.stdout.reconfigure(encoding='utf-8')
+    if sys.stderr:
+        sys.stderr.reconfigure(encoding='utf-8')
 
 # Inicializar colorama para Windows
 init(autoreset=True)
@@ -2831,27 +2838,72 @@ def internal_error(error):
     return render_template('error.html', error='Erro interno do servidor'), 500
 
 if __name__ == '__main__':
-    # Exibir banner amigável
-    print_banner()
-    
-    # Configurar túnel público (ngrok)
-    setup_ngrok()
-    
-    # Mostrar informações de acesso local
-    local_ip = get_local_ip()
-    print(f"{Fore.CYAN}{Style.BRIGHT}" + "=" * 70 + f"{Style.RESET_ALL}")
-    print(f"{Fore.WHITE}{Style.BRIGHT}                 ACESSO NA REDE LOCAL{Style.RESET_ALL}")
-    print(f"{Fore.CYAN}{Style.BRIGHT}" + "=" * 70 + f"{Style.RESET_ALL}")
-    print(f"  {Fore.WHITE}Neste computador:{Style.RESET_ALL}  {Fore.YELLOW}{Style.BRIGHT}http://127.0.0.1:5000{Style.RESET_ALL}")
-    print(f"  {Fore.WHITE}Outros dispositivos:{Style.RESET_ALL} {Fore.YELLOW}{Style.BRIGHT}http://{local_ip}:5000{Style.RESET_ALL}")
-    print(f"{Fore.CYAN}{Style.BRIGHT}" + "=" * 70 + f"{Style.RESET_ALL}")
-    
-    print(f"\n{Fore.GREEN}{Style.BRIGHT}Sistema inicializado com sucesso!{Style.RESET_ALL}")
-    print(f"{Fore.WHITE}   MANTENHA ESTA JANELA ABERTA enquanto usa o sistema.{Style.RESET_ALL}")
-    print(f"{Fore.YELLOW}   Para fechar: pressione Ctrl+C ou feche esta janela.{Style.RESET_ALL}\n")
-    print(f"{Fore.CYAN}{Style.BRIGHT}" + "=" * 70 + f"{Style.RESET_ALL}\n")
-    
-    # Desabilitar reloader para evitar múltiplas instâncias do ngrok
-    # Debug desativado por padrão; habilite com FLASK_DEBUG=1 se necessário
-    debug_mode = os.getenv('FLASK_DEBUG', '0') == '1'
-    app.run(host='0.0.0.0', port=5000, debug=debug_mode, use_reloader=False)
+    # Função para abrir o navegador
+    def open_browser():
+        # Aguarda um pouco para garantir que o servidor subiu
+        import time
+        time.sleep(2)
+        webbrowser.open('http://127.0.0.1:5000')
+
+    # Função para rodar o Flask
+    def run_flask():
+        # Configurar túnel público (ngrok) - se habilitado
+        setup_ngrok()
+        
+        debug_mode = os.getenv('FLASK_DEBUG', '0') == '1'
+        # use_reloader=False é crucial para threads
+        app.run(host='0.0.0.0', port=5000, debug=debug_mode, use_reloader=False)
+
+    # Funções da Bandeja do Sistema
+    def on_quit(icon, item):
+        icon.stop()
+        os._exit(0) # Força o encerramento de todas as threads
+
+    def on_open(icon, item):
+        webbrowser.open('http://127.0.0.1:5000')
+
+    # Configuração do Ícone
+    def setup_tray():
+        # Caminhos possíveis para o ícone
+        icon_path = os.path.join('static', 'images', 'favicon.ico')
+        logo_path = os.path.join('static', 'images', 'Logo_tabacaria.png')
+        image = None
+        
+        # Tenta carregar o favicon.ico
+        if os.path.exists(icon_path):
+            try:
+                image = Image.open(icon_path)
+            except Exception:
+                image = None
+
+        # Se falhou (ou arquivo corrompido), tenta o Logo_tabacaria.png
+        if image is None and os.path.exists(logo_path):
+            try:
+                image = Image.open(logo_path)
+            except Exception:
+                image = None
+        
+        # Se ainda assim não tiver imagem, cria o quadrado azul (fallback)
+        if image is None:
+            image = Image.new('RGB', (64, 64), color = (73, 109, 137))
+        
+        menu = pystray.Menu(
+            item('Abrir Sistema', on_open, default=True),
+            item('Sair', on_quit)
+        )
+        
+        icon = pystray.Icon("Tabacaria", image, "Sistema Tabacaria", menu)
+        icon.run()
+
+    # Iniciar Threads
+    flask_thread = threading.Thread(target=run_flask)
+    flask_thread.daemon = True
+    flask_thread.start()
+
+    browser_thread = threading.Thread(target=open_browser)
+    browser_thread.daemon = True
+    browser_thread.start()
+
+    # Iniciar Tray Icon (Bloqueante)
+    setup_tray()
+

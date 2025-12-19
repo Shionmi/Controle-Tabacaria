@@ -2843,7 +2843,37 @@ if __name__ == '__main__':
         # Aguarda um pouco para garantir que o servidor subiu
         import time
         time.sleep(2)
-        webbrowser.open('http://127.0.0.1:5000')
+        url = 'http://127.0.0.1:5000'
+        
+        # Tentar abrir com Edge ou Chrome em modo tela cheia
+        edge_paths = [
+            r"C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe",
+            r"C:\Program Files\Microsoft\Edge\Application\msedge.exe"
+        ]
+        
+        chrome_paths = [
+            r"C:\Program Files\Google\Chrome\Application\chrome.exe",
+            r"C:\Program Files (x86)\Google\Chrome\Application\chrome.exe",
+            os.path.expanduser(r"~\AppData\Local\Google\Chrome\Application\chrome.exe")
+        ]
+        
+        browser_path = None
+        for path in edge_paths + chrome_paths:
+            if os.path.exists(path):
+                browser_path = path
+                break
+                
+        if browser_path:
+            try:
+                # --new-window: Garante nova janela
+                # --start-fullscreen: Inicia em tela cheia (F11)
+                subprocess.Popen([browser_path, '--new-window', '--start-fullscreen', url])
+                return
+            except Exception:
+                pass
+        
+        # Fallback para navegador padrão
+        webbrowser.open(url)
 
     # Função para rodar o Flask
     def run_flask():
@@ -2860,7 +2890,8 @@ if __name__ == '__main__':
         os._exit(0) # Força o encerramento de todas as threads
 
     def on_open(icon, item):
-        webbrowser.open('http://127.0.0.1:5000')
+        # Usa a mesma lógica para reabrir
+        open_browser()
 
     # Configuração do Ícone
     def setup_tray():

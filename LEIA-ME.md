@@ -41,13 +41,14 @@ Sistema completo de controle de estoque, vendas e gestão para tabacaria.
 ```
 JM_Tabacaria/
 ├── Iniciar_Sistema.bat      # Arquivo principal - execute este!
-├── app.py                    # Aplicação Flask
-├── schema.sql                # Estrutura do banco de dados
-├── requirements.txt          # Dependências Python
-├── Templates/                # Páginas HTML
-├── static/                   # CSS, imagens, códigos de barras
-├── scripts/                  # Scripts de instalação
-└── README.md                 # Este arquivo
+├── app.py                   # Aplicação Flask
+├── schema.sql               # Estrutura do banco de dados
+├── requirements.txt         # Dependências Python
+├── templates/               # Páginas HTML
+├── static/                  # CSS, imagens, códigos de barras
+├── migrations/              # Scripts de manutenção e banco de dados
+├── scripts/                 # Scripts de instalação
+└── LEIA-ME.md               # Este arquivo
 ```
 
 ## 🛠️ Funcionalidades

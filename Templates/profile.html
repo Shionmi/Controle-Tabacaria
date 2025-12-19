@@ -1,0 +1,168 @@
+{% extends "base.html" %}
+
+{% block title %}Editar Perfil - JM Tabacaria{% endblock %}
+
+{% block content %}
+<div class="netflix-container">
+    <div class="netflix-header">
+        <h1>Editar Perfil</h1>
+    </div>
+
+    <div class="profile-edit-layout">
+        <!-- Left Column: Avatar -->
+        <div class="avatar-section">
+            <div class="avatar-edit-wrapper" onclick="openAvatarModal()">
+                <div class="avatar-large" style="{% if current_user.color %}background-color: {{ current_user.color }};{% endif %}">
+                    {% if current_user.avatar == 'bull-custom' %}
+                        <i class="fa-bull-custom"></i>
+                    {% elif current_user.avatar and current_user.avatar != 'default' %}
+                        <i class="fas fa-{{ current_user.avatar }}"></i>
+                    {% else %}
+                        <i class="fas fa-user"></i>
+                    {% endif %}
+                </div>
+                <div class="avatar-overlay">
+                    <i class="fas fa-pencil-alt"></i>
+                </div>
+            </div>
+        </div>
+
+        <!-- Right Column: Forms -->
+        <div class="profile-form-section">
+            
+            <!-- Personal Info Form -->
+            <form method="POST" action="{{ url_for('profile') }}">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <input type="hidden" name="action" value="update_info">
+                
+                <div class="netflix-input-group">
+                    <label>Nome de Perfil</label>
+                    <input type="text" class="netflix-input" name="username" value="{{ current_user.username }}" required>
+                </div>
+
+                <div class="netflix-section-title">Personalização</div>
+                
+                <div class="netflix-input-group">
+                    <label>Cor do Perfil</label>
+                    <div class="color-grid">
+                        {% for color in ['#e50914', '#2ecc71', '#3498db', '#9b59b6', '#f1c40f', '#e67e22', '#95a5a6', '#34495e'] %}
+                        <div class="color-option {% if current_user.color == color %}selected{% endif %}" 
+                             style="background-color: {{ color }};"
+                             onclick="selectColor('{{ color }}')"></div>
+                        {% endfor %}
+                    </div>
+                    <input type="hidden" name="color" id="selectedColor" value="{{ current_user.color }}">
+                </div>
+
+                <div class="netflix-section-title">Informações de Contato</div>
+                
+                <div class="netflix-input-group">
+                    <label>Email</label>
+                    <input type="email" class="netflix-input" name="email" value="{{ current_user.email or '' }}" placeholder="seu@email.com">
+                </div>
+
+                <div class="netflix-buttons">
+                    <button type="submit" class="btn-netflix-primary">Salvar</button>
+                    <a href="{{ url_for('index') }}" class="btn-netflix-secondary">Cancelar</a>
+                </div>
+            </form>
+
+            <!-- Password Section (Visually separated) -->
+            <div class="netflix-section-title" style="margin-top: 3rem;">Segurança</div>
+            
+            <form method="POST" action="{{ url_for('profile') }}">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <input type="hidden" name="action" value="update_password">
+
+                <div class="netflix-input-group">
+                    <label>Senha Atual</label>
+                    <input type="password" class="netflix-input" name="current_password" required>
+                </div>
+
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="netflix-input-group">
+                            <label>Nova Senha</label>
+                            <input type="password" class="netflix-input" name="new_password" required>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="netflix-input-group">
+                            <label>Confirmar Nova Senha</label>
+                            <input type="password" class="netflix-input" name="confirm_password" required>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="netflix-buttons">
+                    <button type="submit" class="btn-netflix-secondary">Alterar Senha</button>
+                </div>
+            </form>
+
+        </div>
+    </div>
+</div>
+
+<!-- Avatar Selection Modal -->
+<div id="avatarModal" class="modal">
+    <div class="modal-content" style="max-width: 600px; background: #141414; color: white; border: 1px solid #333;">
+        <div class="modal-header" style="border-bottom: 1px solid #333;">
+            <h3>Escolher Ícone</h3>
+            <span class="close-modal" onclick="closeAvatarModal()" style="color: white;">&times;</span>
+        </div>
+        <div class="modal-body">
+            <form method="POST" action="{{ url_for('profile') }}" id="avatarForm">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <input type="hidden" name="action" value="update_avatar">
+                <input type="hidden" name="avatar" id="selectedAvatarInput">
+                
+                <div class="avatar-grid">
+                    <div class="avatar-option" onclick="selectAvatar('bull-custom')">
+                        <i class="fa-bull-custom"></i>
+                    </div>
+                    {% set icons = ['user', 'user-tie', 'user-astronaut', 'user-ninja', 'user-secret', 'robot', 'smile', 'cat', 'dog', 'dragon', 'ghost', 'skull', 'crown', 'gamepad', 'headset', 'music'] %}
+                    {% for icon in icons %}
+                    <div class="avatar-option" onclick="selectAvatar('{{ icon }}')">
+                        <i class="fas fa-{{ icon }}"></i>
+                    </div>
+                    {% endfor %}
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+function openAvatarModal() {
+    document.getElementById('avatarModal').style.display = 'flex';
+}
+
+function closeAvatarModal() {
+    document.getElementById('avatarModal').style.display = 'none';
+}
+
+function selectColor(color) {
+    document.getElementById('selectedColor').value = color;
+    document.querySelectorAll('.color-option').forEach(opt => opt.classList.remove('selected'));
+    event.target.classList.add('selected');
+}
+
+function selectAvatar(icon) {
+    document.getElementById('selectedAvatarInput').value = icon;
+    document.getElementById('avatarForm').submit();
+}
+
+function selectAvatar(icon) {
+    document.getElementById('selectedAvatarInput').value = icon;
+    document.getElementById('avatarForm').submit();
+}
+
+// Close modal when clicking outside
+window.onclick = function(event) {
+    var modal = document.getElementById('avatarModal');
+    if (event.target == modal) {
+        closeAvatarModal();
+    }
+}
+</script>
+{% endblock %}

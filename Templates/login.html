@@ -1,0 +1,297 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login - JM Tabacaria</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        body {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            background-color: #0f172a; /* Fallback color */
+            background-image: url("{{ url_for('static', filename='images/background_login.jpg') }}");
+            background-repeat: no-repeat;
+            background-position: center center;
+            background-attachment: fixed;
+            background-size: cover;
+            font-family: 'Inter', sans-serif;
+            margin: 0;
+        }
+        
+        /* Overlay com blur */
+        body::before {
+            content: "";
+            position: absolute;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(15, 23, 42, 0.8); /* Darker overlay */
+            backdrop-filter: blur(10px);
+            z-index: -1;
+        }
+        
+        .login-container {
+            background: var(--bg-card); /* Use theme variable */
+            padding: 3rem;
+            border-radius: 24px;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+            width: 100%;
+            max-width: 420px;
+            text-align: center;
+            position: relative;
+            overflow: hidden;
+            border: 1px solid rgba(255, 255, 255, 0.05);
+        }
+        
+        .login-header {
+            margin-bottom: 2.5rem;
+        }
+        
+        .logo-circle {
+            width: 90px;
+            height: 90px;
+            background: var(--bg-body);
+            border-radius: 50%;
+            margin: 0 auto 1.5rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+            padding: 15px;
+            border: 2px solid rgba(255, 255, 255, 0.05);
+        }
+        
+        .logo-circle img {
+            max-width: 100%;
+            max-height: 100%;
+            object-fit: contain;
+        }
+        
+        .login-header h1 {
+            color: var(--text-main);
+            margin: 0;
+            font-family: 'Poppins', sans-serif;
+            font-size: 1.8rem;
+            font-weight: 600;
+        }
+        
+        .login-header p {
+            color: var(--text-muted);
+            margin-top: 0.5rem;
+            font-size: 0.95rem;
+        }
+        
+        .user-selector {
+            display: flex;
+            justify-content: center;
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+        }
+        
+        .user-avatar {
+            width: 70px;
+            height: 70px;
+            border-radius: 50%;
+            background: var(--bg-body);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            border: 2px solid rgba(255, 255, 255, 0.1);
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .user-avatar.active {
+            border-color: var(--accent-primary);
+            transform: scale(1.1);
+            box-shadow: 0 0 15px rgba(239, 68, 68, 0.3);
+        }
+        
+        .user-avatar:hover:not(.active) {
+            transform: scale(1.05);
+            background: var(--bg-card-hover);
+        }
+        
+        .user-avatar i {
+            font-size: 2rem;
+            color: var(--text-muted);
+        }
+        
+        .user-avatar.active i {
+            color: var(--accent-primary);
+        }
+        
+        .user-name {
+            margin-top: 0.5rem;
+            font-size: 0.85rem;
+            color: var(--text-muted);
+            font-weight: 500;
+        }
+        
+        .form-group {
+            margin-bottom: 1.5rem;
+            text-align: left;
+            position: relative;
+        }
+        
+        .form-group i {
+            position: absolute;
+            left: 1rem;
+            top: 50%;
+            transform: translateY(-50%);
+            color: var(--text-muted);
+            transition: color 0.3s;
+        }
+        
+        .form-group input {
+            width: 100%;
+            padding: 1rem 1rem 1rem 3rem;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 12px;
+            font-size: 1rem;
+            transition: all 0.3s;
+            background: var(--bg-body);
+            color: var(--text-main);
+            box-sizing: border-box;
+        }
+        
+        .form-group input:focus {
+            outline: none;
+            border-color: var(--accent-primary);
+            box-shadow: 0 0 0 2px rgba(239, 68, 68, 0.2);
+        }
+        
+        .form-group input:focus + i {
+            color: var(--accent-primary);
+        }
+        
+        .btn-login {
+            width: 100%;
+            padding: 1rem;
+            background: var(--accent-primary);
+            color: white;
+            border: none;
+            border-radius: 12px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+            margin-top: 1rem;
+        }
+        
+        .btn-login:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px -5px rgba(239, 68, 68, 0.4);
+            background: #dc2626; /* Darker red */
+        }
+        
+        .alert {
+            padding: 1rem;
+            margin-bottom: 1.5rem;
+            border-radius: 12px;
+            font-size: 0.9rem;
+            text-align: left;
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+        
+        .alert-error {
+            background-color: rgba(239, 68, 68, 0.1);
+            border: 1px solid rgba(239, 68, 68, 0.2);
+            color: #fca5a5;
+        }
+        
+        .alert-success {
+            background-color: rgba(16, 185, 129, 0.1);
+            border: 1px solid rgba(16, 185, 129, 0.2);
+            color: #6ee7b7;
+        }
+        
+        .login-footer {
+            margin-top: 2rem;
+            font-size: 0.85rem;
+            color: var(--text-muted);
+        }
+        
+        /* Animação de entrada */
+        @keyframes fadeInUp {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        .login-container {
+            animation: fadeInUp 0.5s ease-out;
+        }
+    </style>
+</head>
+<body>
+    <div class="login-container">
+        <div class="login-header">
+            <div class="logo-circle">
+                <img src="{{ url_for('static', filename='images/Logo_tabacaria.png') }}" alt="Logo">
+            </div>
+            <h1>Bem-vindo</h1>
+            <p>Selecione seu usuário para continuar</p>
+        </div>
+        
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                    <div class="alert alert-{{ category }}">
+                        <i class="fas fa-{{ 'check-circle' if category == 'success' else 'exclamation-circle' }}"></i>
+                        {{ message }}
+                    </div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+        
+        <div class="user-selector">
+            <div class="user-option" onclick="selectUser('admin')">
+                <div class="user-avatar active" id="avatar-admin">
+                    <i class="fas fa-user-shield"></i>
+                </div>
+                <div class="user-name">Admin</div>
+            </div>
+            <!-- Futuros usuários apareceriam aqui -->
+        </div>
+        
+        <form method="POST" action="{{ url_for('login') }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+            <input type="hidden" id="username" name="username" value="admin">
+            
+            <div class="form-group">
+                <input type="password" id="password" name="password" required placeholder="Digite sua senha" autofocus>
+                <i class="fas fa-lock"></i>
+            </div>
+            
+            <button type="submit" class="btn-login">
+                Entrar no Sistema <i class="fas fa-arrow-right" style="margin-left: 8px;"></i>
+            </button>
+        </form>
+        
+        <div class="login-footer">
+            <p>&copy; 2025 JM Tabacaria. Todos os direitos reservados.</p>
+        </div>
+    </div>
+
+    <script>
+        function selectUser(username) {
+            // Atualizar input hidden
+            document.getElementById('username').value = username;
+            
+            // Atualizar visual
+            document.querySelectorAll('.user-avatar').forEach(el => el.classList.remove('active'));
+            document.getElementById('avatar-' + username).classList.add('active');
+            
+            // Focar na senha
+            document.getElementById('password').focus();
+        }
+    </script>
+</body>
+</html>

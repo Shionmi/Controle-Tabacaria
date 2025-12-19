@@ -1,7 +1,11 @@
 from flask import send_file
-from flask import Flask, render_template, request, jsonify
+from flask import Flask, render_template, request, jsonify, redirect, url_for, flash, session
+from flask_login import LoginManager, UserMixin, login_user, logout_user, login_required, current_user
+from flask_wtf.csrf import CSRFProtect, generate_csrf
+from werkzeug.security import generate_password_hash, check_password_hash
 import sqlite3
 import os
+import subprocess
 import barcode
 from barcode.writer import ImageWriter
 from reportlab.pdfgen import canvas
@@ -14,6 +18,14 @@ import atexit
 from colorama import init, Fore, Back, Style
 import sys
 import logging
+from functools import wraps
+from datetime import datetime, timedelta
+import re
+
+# Fix Windows encoding issues
+if sys.platform == 'win32':
+    sys.stdout.reconfigure(encoding='utf-8')
+    sys.stderr.reconfigure(encoding='utf-8')
 
 # Inicializar colorama para Windows
 init(autoreset=True)
@@ -29,8 +41,63 @@ _ngrok_initialized = False
 
 app = Flask(__name__)
 
+# Gerar ou carregar SECRET_KEY persistente
+def get_or_create_secret_key():
+    """Gera ou carrega SECRET_KEY do arquivo .secret_key"""
+    secret_file = '.secret_key'
+    if os.path.exists(secret_file):
+        with open(secret_file, 'rb') as f:
+            return f.read()
+    else:
+        secret_key = os.urandom(32)
+        with open(secret_file, 'wb') as f:
+            f.write(secret_key)
+        return secret_key
+
+app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY') or get_or_create_secret_key()
+app.config['WTF_CSRF_ENABLED'] = True
+app.config['WTF_CSRF_TIME_LIMIT'] = None  # Token nunca expira
+
+# Configurações de Sessão para Segurança
+app.config['SESSION_COOKIE_BROWSER_LIFETIME_ONLY'] = True # Cookie expira ao fechar o navegador
+app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(minutes=60) # Sessão expira em 60 min de inatividade
+app.config['SESSION_REFRESH_EACH_REQUEST'] = True
+app.config['REMEMBER_COOKIE_DURATION'] = timedelta(seconds=0) # Desativar cookie de "lembrar-me"
+
+# Configurar Flask-Login
+login_manager = LoginManager()
+login_manager.init_app(app)
+login_manager.login_view = 'login'
+login_manager.login_message = 'Por favor, faça login para acessar esta página.'
+
+# Configurar CSRF Protection
+csrf = CSRFProtect(app)
+
 # Variável global para armazenar a URL pública
 public_url = None
+
+# Classe de usuário para Flask-Login
+class User(UserMixin):
+    def __init__(self, id, username, email=None, avatar='default', color='#3b82f6'):
+        self.id = id
+        self.username = username
+        self.email = email
+        self.avatar = avatar
+        self.color = color
+
+@login_manager.user_loader
+def load_user(user_id):
+    conn = get_db()
+    cur = conn.execute("SELECT * FROM usuarios WHERE id_usuario=?", (user_id,))
+    user_data = cur.fetchone()
+    conn.close()
+    
+    if user_data:
+        email = user_data['email'] if 'email' in user_data.keys() else None
+        avatar = user_data['avatar'] if 'avatar' in user_data.keys() else 'default'
+        color = user_data['color'] if 'color' in user_data.keys() else '#3b82f6'
+        return User(user_data['id_usuario'], user_data['username'], email, avatar, color)
+    return None
 
 def get_local_ip():
     try:
@@ -45,9 +112,9 @@ def get_local_ip():
 
 def print_banner():
     """Exibe banner amigável e colorido"""
-    print(f"\n{Fore.CYAN}{Style.BRIGHT}" + "═" * 70)
-    print(f"{Fore.YELLOW}{Style.BRIGHT}                    🏪 JM TABACARIA - SISTEMA ATIVO 🏪")
-    print(f"{Fore.CYAN}{Style.BRIGHT}" + "═" * 70 + Style.RESET_ALL)
+    print(f"\n{Fore.CYAN}{Style.BRIGHT}" + "=" * 70)
+    print(f"{Fore.YELLOW}{Style.BRIGHT}                  JM TABACARIA - SISTEMA ATIVO")
+    print(f"{Fore.CYAN}{Style.BRIGHT}" + "=" * 70 + Style.RESET_ALL)
 
 def setup_ngrok():
     global public_url, _ngrok_initialized
@@ -58,34 +125,45 @@ def setup_ngrok():
     
     _ngrok_initialized = True
     
+    # Ngrok desabilitado por padrão por segurança
+    # Para habilitar, defina a variável de ambiente ENABLE_NGROK=1
+    if os.environ.get('ENABLE_NGROK', '0') != '1':
+        print(f"\n{Fore.YELLOW}[!] Tunel publico ngrok DESABILITADO por seguranca{Style.RESET_ALL}")
+        print(f"{Fore.WHITE}   Para habilitar acesso remoto, defina ENABLE_NGROK=1{Style.RESET_ALL}")
+        print(f"{Fore.GREEN}[OK] Sistema funcionara apenas na rede local{Style.RESET_ALL}\n")
+        public_url = None
+        return
+    
     try:
         # Verificar se há túneis ativos
         existing_tunnels = ngrok.get_tunnels()
         if existing_tunnels:
-            print(f"\n{Fore.YELLOW}⚠️  Detectado túnel ngrok já ativo!{Style.RESET_ALL}")
-            print(f"{Fore.GREEN}✓ Reutilizando túnel existente...{Style.RESET_ALL}")
+            print(f"\n{Fore.YELLOW}[!] Detectado tunel ngrok ja ativo!{Style.RESET_ALL}")
+            print(f"{Fore.GREEN}[OK] Reutilizando tunel existente...{Style.RESET_ALL}")
             public_url = existing_tunnels[0].public_url
-            print(f"\n{Fore.CYAN}{Style.BRIGHT}" + "═" * 70 + f"{Style.RESET_ALL}")
-            print(f"{Fore.GREEN}{Style.BRIGHT}              🌍 ACESSO PÚBLICO ATIVADO! 🌍{Style.RESET_ALL}")
-            print(f"{Fore.CYAN}{Style.BRIGHT}" + "═" * 70 + f"{Style.RESET_ALL}")
-            print(f"\n{Fore.WHITE}{Style.BRIGHT}  ✅ Acesse de QUALQUER LUGAR (celular, tablet, etc):{Style.RESET_ALL}")
-            print(f"\n{Fore.YELLOW}{Style.BRIGHT}     → {public_url}{Style.RESET_ALL}")
-            print(f"\n{Fore.MAGENTA}  💡 Compartilhe este link com quem precisar acessar!{Style.RESET_ALL}")
-            print(f"\n{Fore.CYAN}{Style.BRIGHT}" + "═" * 70 + f"{Style.RESET_ALL}\n")
+            print(f"\n{Fore.CYAN}{Style.BRIGHT}" + "=" * 70 + f"{Style.RESET_ALL}")
+            print(f"{Fore.GREEN}{Style.BRIGHT}              ACESSO PUBLICO ATIVADO!{Style.RESET_ALL}")
+            print(f"{Fore.RED}{Style.BRIGHT}              ATENCAO: SEM AUTENTICACAO ADICIONAL{Style.RESET_ALL}")
+            print(f"{Fore.CYAN}{Style.BRIGHT}" + "=" * 70 + f"{Style.RESET_ALL}")
+            print(f"\n{Fore.WHITE}{Style.BRIGHT}  [OK] Acesse de QUALQUER LUGAR (celular, tablet, etc):{Style.RESET_ALL}")
+            print(f"\n{Fore.YELLOW}{Style.BRIGHT}     -> {public_url}{Style.RESET_ALL}")
+            print(f"\n{Fore.MAGENTA}  Compartilhe este link apenas com pessoas confiaveis!{Style.RESET_ALL}")
+            print(f"{Fore.RED}  ATENCAO: Qualquer pessoa com este link pode acessar o sistema!{Style.RESET_ALL}")
+            print(f"\n{Fore.CYAN}{Style.BRIGHT}" + "=" * 70 + f"{Style.RESET_ALL}\n")
             return
         
         # Criar novo túnel público na porta 5000
-        print(f"\n{Fore.CYAN}🔄 Criando túnel público...{Style.RESET_ALL}")
+        print(f"\n{Fore.CYAN}[...] Criando tunel publico...{Style.RESET_ALL}")
         tunnel = ngrok.connect(5000, bind_tls=True)
         public_url = tunnel.public_url
         
-        print(f"\n{Fore.CYAN}{Style.BRIGHT}" + "═" * 70 + f"{Style.RESET_ALL}")
-        print(f"{Fore.GREEN}{Style.BRIGHT}              🌍 ACESSO PÚBLICO ATIVADO! 🌍{Style.RESET_ALL}")
-        print(f"{Fore.CYAN}{Style.BRIGHT}" + "═" * 70 + f"{Style.RESET_ALL}")
-        print(f"\n{Fore.WHITE}{Style.BRIGHT}  ✅ Acesse de QUALQUER LUGAR (celular, tablet, etc):{Style.RESET_ALL}")
-        print(f"\n{Fore.YELLOW}{Style.BRIGHT}     → {public_url}{Style.RESET_ALL}")
-        print(f"\n{Fore.MAGENTA}  💡 Compartilhe este link com quem precisar acessar!{Style.RESET_ALL}")
-        print(f"\n{Fore.CYAN}{Style.BRIGHT}" + "═" * 70 + f"{Style.RESET_ALL}\n")
+        print(f"\n{Fore.CYAN}{Style.BRIGHT}" + "=" * 70 + f"{Style.RESET_ALL}")
+        print(f"{Fore.GREEN}{Style.BRIGHT}              ACESSO PUBLICO ATIVADO!{Style.RESET_ALL}")
+        print(f"{Fore.CYAN}{Style.BRIGHT}" + "=" * 70 + f"{Style.RESET_ALL}")
+        print(f"\n{Fore.WHITE}{Style.BRIGHT}  [OK] Acesse de QUALQUER LUGAR (celular, tablet, etc):{Style.RESET_ALL}")
+        print(f"\n{Fore.YELLOW}{Style.BRIGHT}     -> {public_url}{Style.RESET_ALL}")
+        print(f"\n{Fore.MAGENTA}  Compartilhe este link com quem precisar acessar!{Style.RESET_ALL}")
+        print(f"\n{Fore.CYAN}{Style.BRIGHT}" + "=" * 70 + f"{Style.RESET_ALL}\n")
         
         # Fechar túnel ao encerrar
         atexit.register(ngrok.kill)
@@ -95,27 +173,27 @@ def setup_ngrok():
         
         # Tratamento específico para erro de limite de sessões
         if 'limited to' in error_msg and 'simultaneous' in error_msg:
-            print(f"\n{Fore.RED}{Style.BRIGHT}" + "═" * 70 + f"{Style.RESET_ALL}")
-            print(f"{Fore.YELLOW}  ⚠️  LIMITE DE SESSÕES NGROK ATINGIDO{Style.RESET_ALL}")
-            print(f"{Fore.RED}{Style.BRIGHT}" + "═" * 70 + f"{Style.RESET_ALL}")
-            print(f"\n{Fore.WHITE}  Você já tem 3 sessões ngrok abertas.{Style.RESET_ALL}")
-            print(f"\n{Fore.CYAN}  💡 Soluções:{Style.RESET_ALL}")
-            print(f"  {Fore.GREEN}1.{Style.RESET_ALL} Feche outras sessões em: {Fore.YELLOW}https://dashboard.ngrok.com/agents{Style.RESET_ALL}")
+            print(f"\n{Fore.RED}{Style.BRIGHT}" + "=" * 70 + f"{Style.RESET_ALL}")
+            print(f"{Fore.YELLOW}  [!] LIMITE DE SESSOES NGROK ATINGIDO{Style.RESET_ALL}")
+            print(f"{Fore.RED}{Style.BRIGHT}" + "=" * 70 + f"{Style.RESET_ALL}")
+            print(f"\n{Fore.WHITE}  Voce ja tem 3 sessoes ngrok abertas.{Style.RESET_ALL}")
+            print(f"\n{Fore.CYAN}  [INFO] Solucoes:{Style.RESET_ALL}")
+            print(f"  {Fore.GREEN}1.{Style.RESET_ALL} Feche outras sessoes em: {Fore.YELLOW}https://dashboard.ngrok.com/agents{Style.RESET_ALL}")
             print(f"  {Fore.GREEN}2.{Style.RESET_ALL} Use o acesso local na sua rede Wi-Fi")
-            print(f"\n{Fore.MAGENTA}  → O sistema funcionará normalmente na rede local!{Style.RESET_ALL}")
-            print(f"\n{Fore.RED}{Style.BRIGHT}" + "═" * 70 + f"{Style.RESET_ALL}\n")
+            print(f"\n{Fore.MAGENTA}  -> O sistema funcionara normalmente na rede local!{Style.RESET_ALL}")
+            print(f"\n{Fore.RED}{Style.BRIGHT}" + "=" * 70 + f"{Style.RESET_ALL}\n")
         
         # Tratamento para endpoint já em uso
         elif 'already online' in error_msg:
-            print(f"\n{Fore.YELLOW}⚠️  Túnel ngrok já está ativo em outra janela!{Style.RESET_ALL}")
-            print(f"{Fore.CYAN}💡 Feche as outras janelas do sistema ou use o túnel existente.{Style.RESET_ALL}\n")
+            print(f"\n{Fore.YELLOW}[!] Tunel ngrok ja esta ativo em outra janela!{Style.RESET_ALL}")
+            print(f"{Fore.CYAN}[INFO] Feche as outras janelas do sistema ou use o tunel existente.{Style.RESET_ALL}\n")
         
         # Outros erros
         else:
-            print(f"\n{Fore.YELLOW}⚠️  Não foi possível criar túnel público{Style.RESET_ALL}")
+            print(f"\n{Fore.YELLOW}[!] Nao foi possivel criar tunel publico{Style.RESET_ALL}")
             print(f"{Fore.WHITE}   Detalhes: {str(e)[:100]}...{Style.RESET_ALL}\n")
         
-        print(f"{Fore.GREEN}✓ Sistema funcionará na rede local!{Style.RESET_ALL}\n")
+        print(f"{Fore.GREEN}[OK] Sistema funcionara na rede local!{Style.RESET_ALL}\n")
         public_url = None
 
 @app.route('/imprimir_etiqueta/<int:id_produto>')
@@ -337,8 +415,253 @@ def get_db():
     conn.row_factory = sqlite3.Row
     return conn
 
+# ============================================
+# AUTENTICAÇÃO E SEGURANÇA
+# ============================================
+
+# Validação de inputs
+def validate_date(date_str):
+    """Valida formato de data YYYY-MM-DD"""
+    if not date_str:
+        return False
+    try:
+        datetime.strptime(date_str, '%Y-%m-%d')
+        return True
+    except ValueError:
+        return False
+
+def validate_money(value):
+    """Valida e converte valor monetário"""
+    try:
+        val = float(value)
+        if val < 0:
+            return None
+        return round(val, 2)
+    except (ValueError, TypeError):
+        return None
+
+def validate_int(value):
+    """Valida e converte inteiro positivo"""
+    try:
+        val = int(value)
+        if val < 0:
+            return None
+        return val
+    except (ValueError, TypeError):
+        return None
+
+@app.route('/login', methods=['GET', 'POST'])
+def login():
+    if current_user.is_authenticated:
+        return redirect(url_for('index'))
+    
+    if request.method == 'POST':
+        username = request.form.get('username', '').strip()
+        password = request.form.get('password', '')
+        
+        if not username or not password:
+            flash('Usuário e senha são obrigatórios', 'error')
+            return render_template('login.html')
+        
+        conn = get_db()
+        cur = conn.execute("SELECT * FROM usuarios WHERE username=? AND ativo=1", (username,))
+        user_data = cur.fetchone()
+        conn.close()
+        
+        if user_data and check_password_hash(user_data['password_hash'], password):
+            email = user_data['email'] if 'email' in user_data.keys() else None
+            avatar = user_data['avatar'] if 'avatar' in user_data.keys() else 'default'
+            color = user_data['color'] if 'color' in user_data.keys() else '#3b82f6'
+            user = User(user_data['id_usuario'], user_data['username'], email, avatar, color)
+            # remember=False garante que ao fechar o navegador, o usuário seja deslogado
+            login_user(user, remember=False)
+            
+            # Configurar sessão para expirar ao fechar o navegador
+            session.permanent = False
+            
+            # Atualizar último login
+            conn = get_db()
+            conn.execute("UPDATE usuarios SET ultimo_login=datetime('now') WHERE id_usuario=?", (user.id,))
+            conn.commit()
+            conn.close()
+            
+            log_event('login', 'usuario', detalhe=f'Usuário {username} fez login')
+            
+            next_page = request.args.get('next')
+            return redirect(next_page if next_page else url_for('index'))
+        else:
+            flash('Usuário ou senha incorretos', 'error')
+            log_event('login_falha', 'usuario', detalhe=f'Tentativa de login falhou para {username}')
+    
+    return render_template('login.html')
+
+@app.route('/logout')
+@login_required
+def logout():
+    username = current_user.username
+    logout_user()
+    log_event('logout', 'usuario', detalhe=f'Usuário {username} fez logout')
+    flash('Logout realizado com sucesso', 'success')
+    return redirect(url_for('login'))
+
+@app.route('/profile', methods=['GET', 'POST'])
+@login_required
+def profile():
+    if request.method == 'POST':
+        action = request.form.get('action')
+        conn = get_db()
+        
+        if action == 'update_info':
+            new_username = request.form.get('username')
+            new_email = request.form.get('email')
+            
+            # Check if username exists (if changed)
+            if new_username != current_user.username:
+                existing = conn.execute("SELECT id_usuario FROM usuarios WHERE username=?", (new_username,)).fetchone()
+                if existing:
+                    flash('Nome de usuário já existe.', 'error')
+                    conn.close()
+                    return redirect(url_for('profile'))
+            
+            conn.execute("UPDATE usuarios SET username=?, email=? WHERE id_usuario=?", 
+                         (new_username, new_email, current_user.id))
+            conn.commit()
+            flash('Informações atualizadas com sucesso!', 'success')
+            
+        elif action == 'update_password':
+            current_password = request.form.get('current_password')
+            new_password = request.form.get('new_password')
+            confirm_password = request.form.get('confirm_password')
+            
+            user_data = conn.execute("SELECT password_hash FROM usuarios WHERE id_usuario=?", (current_user.id,)).fetchone()
+            
+            if not check_password_hash(user_data['password_hash'], current_password):
+                flash('Senha atual incorreta.', 'error')
+            elif new_password != confirm_password:
+                flash('As novas senhas não coincidem.', 'error')
+            else:
+                new_hash = generate_password_hash(new_password)
+                conn.execute("UPDATE usuarios SET password_hash=? WHERE id_usuario=?", (new_hash, current_user.id))
+                conn.commit()
+                flash('Senha alterada com sucesso!', 'success')
+                
+        elif action == 'update_avatar':
+            avatar = request.form.get('avatar')
+            color = request.form.get('color')
+            
+            if avatar:
+                conn.execute("UPDATE usuarios SET avatar=? WHERE id_usuario=?", (avatar, current_user.id))
+            
+            if color:
+                conn.execute("UPDATE usuarios SET color=? WHERE id_usuario=?", (color, current_user.id))
+                
+            conn.commit()
+            flash('Aparência atualizada!', 'success')
+            
+        conn.close()
+        return redirect(url_for('profile'))
+        
+    return render_template('profile.html')
+
+@app.route('/api/csrf-token')
+def get_csrf_token():
+    """Endpoint para obter token CSRF para requisições AJAX"""
+    token = generate_csrf()
+    return jsonify({'csrf_token': token})
+
+@app.route('/api/check_updates')
+@login_required
+def check_updates():
+    try:
+        # Fetch latest changes
+        subprocess.check_output(['git', 'fetch'], stderr=subprocess.STDOUT)
+        
+        # Check how many commits we are behind
+        output = subprocess.check_output(['git', 'rev-list', '--count', 'HEAD..@{u}'], stderr=subprocess.STDOUT)
+        commits_behind = int(output.decode('utf-8').strip())
+        
+        if commits_behind > 0:
+            return jsonify({'update_available': True, 'commits': commits_behind})
+        else:
+            return jsonify({'update_available': False})
+            
+    except Exception as e:
+        app.logger.error(f"Update check failed: {str(e)}")
+        return jsonify({'error': 'Não foi possível verificar atualizações', 'details': str(e)}), 500
+
+@app.route('/api/perform_update', methods=['POST'])
+@login_required
+def perform_update():
+    try:
+        # Pull changes
+        output = subprocess.check_output(['git', 'pull'], stderr=subprocess.STDOUT)
+        return jsonify({'success': True, 'message': 'Sistema atualizado com sucesso! Reinicie o servidor.'})
+    except subprocess.CalledProcessError as e:
+        return jsonify({'success': False, 'error': 'Falha no git pull', 'details': e.output.decode('utf-8')}), 500
+    except Exception as e:
+        return jsonify({'success': False, 'error': 'Erro interno', 'details': str(e)}), 500
+
+@app.before_request
+def require_login():
+    """Require login for all routes except login, setup, static files, and CSRF token"""
+    allowed_routes = ['login', 'setup', 'static', 'get_csrf_token']
+    
+    # Verificar se existe algum usuário no banco
+    if request.endpoint != 'static' and request.endpoint != 'setup':
+        conn = get_db()
+        user_count = conn.execute("SELECT COUNT(*) FROM usuarios").fetchone()[0]
+        conn.close()
+        
+        if user_count == 0:
+            return redirect(url_for('setup'))
+
+    if request.endpoint and request.endpoint not in allowed_routes:
+        if not current_user.is_authenticated:
+            if request.is_json or request.path.startswith('/api/'):
+                return jsonify({'erro': 'Autenticação necessária'}), 401
+            return redirect(url_for('login', next=request.url))
+
+@app.route('/setup', methods=['GET', 'POST'])
+def setup():
+    # Verificar se já existe usuário
+    conn = get_db()
+    user_count = conn.execute("SELECT COUNT(*) FROM usuarios").fetchone()[0]
+    conn.close()
+    
+    if user_count > 0:
+        flash('O sistema já está configurado.', 'error')
+        return redirect(url_for('login'))
+        
+    if request.method == 'POST':
+        username = request.form.get('username', '').strip()
+        password = request.form.get('password', '')
+        confirm = request.form.get('confirm_password', '')
+        
+        if not username or not password:
+            flash('Preencha todos os campos.', 'error')
+        elif password != confirm:
+            flash('As senhas não conferem.', 'error')
+        else:
+            try:
+                conn = get_db()
+                password_hash = generate_password_hash(password)
+                conn.execute("""
+                    INSERT INTO usuarios (username, password_hash, email, ativo, role)
+                    VALUES (?, ?, ?, 1, 'admin')
+                """, (username, password_hash, f"{username}@sistema.local"))
+                conn.commit()
+                conn.close()
+                
+                flash('Administrador criado com sucesso! Faça login.', 'success')
+                return redirect(url_for('login'))
+            except Exception as e:
+                flash(f'Erro ao criar usuário: {str(e)}', 'error')
+                
+    return render_template('setup.html')
+
 # ===== Página inicial =====
 @app.route('/')
+@login_required
 def index():
     mobile_ip = get_local_ip()
     # Usar URL pública se disponível, senão IP local
@@ -347,21 +670,25 @@ def index():
 
 # ===== Página de registrar produtos (Redirecionado para Estoque) =====
 @app.route('/registrar')
+@login_required
 def registrar():
     from flask import redirect, url_for
     return redirect(url_for('estoque'))
 
 # ===== Página de clientes =====
 @app.route('/clientes')
+@login_required
 def clientes():
     return render_template('clientes.html')
 
 
 @app.route('/venda')
+@login_required
 def venda():
     return render_template('venda.html')
 
 @app.route('/estornar_venda')
+@login_required
 def estornar_venda_page():
     return render_template('estornar_venda.html')
 
@@ -663,6 +990,7 @@ def deletar_produto(id_produto):
                  detalhe=f'Produto {id_produto} removido com código de barras {codigo_barras}')
             
     except Exception as e:
+        conn.rollback()
         conn.close()
         return jsonify({"erro": f"Erro ao remover produto: {str(e)}"}), 500
         
@@ -873,36 +1201,7 @@ def criar_venda():
                 conn.rollback(); conn.close()
                 return jsonify({'erro': 'Cliente não encontrado.'}), 404
 
-        # Ensure vendas table has optional client columns
-        cur2 = conn.cursor()
-        cur2.execute("PRAGMA table_info('vendas')")
-        cols = [r['name'] for r in cur2.fetchall()]
-        if 'id_cliente' not in cols:
-            cur2.execute('ALTER TABLE vendas ADD COLUMN id_cliente INTEGER')
-        if 'cliente_nome' not in cols:
-            cur2.execute("ALTER TABLE vendas ADD COLUMN cliente_nome TEXT")
-        # ensure discount and total columns exist so we can persist them when provided
-        if 'discount_percent' not in cols:
-            try:
-                cur2.execute('ALTER TABLE vendas ADD COLUMN discount_percent REAL')
-            except Exception:
-                pass
-        if 'total' not in cols:
-            try:
-                cur2.execute('ALTER TABLE vendas ADD COLUMN total REAL')
-            except Exception:
-                pass
-        # ensure forma_pagamento and data_vencimento columns exist
-        if 'forma_pagamento' not in cols:
-            try:
-                cur2.execute('ALTER TABLE vendas ADD COLUMN forma_pagamento TEXT')
-            except Exception:
-                pass
-        if 'data_vencimento' not in cols:
-            try:
-                cur2.execute('ALTER TABLE vendas ADD COLUMN data_vencimento TEXT')
-            except Exception:
-                pass
+        # Vendas table columns are now created in schema.sql
 
         # create venda (include optional fields)
         insert_cols = ['id_revendedor', 'observacao']
@@ -917,22 +1216,28 @@ def criar_venda():
         forma_pagamento = data.get('forma_pagamento')
         data_vencimento = data.get('data_vencimento')
         
+        # Validate discount_percent
         if discount_percent is not None:
-            try:
-                dp = float(discount_percent)
+            dp = validate_money(discount_percent)
+            if dp is not None and dp <= 100:
                 insert_cols.append('discount_percent'); insert_vals.append(dp)
-            except Exception:
-                pass
+        
+        # Validate total_final
         if total_final is not None:
-            try:
-                tf = float(total_final)
+            tf = validate_money(total_final)
+            if tf is not None:
                 insert_cols.append('total'); insert_vals.append(tf)
-            except Exception:
-                pass
+        
+        # Validate forma_pagamento
         if forma_pagamento:
-            insert_cols.append('forma_pagamento'); insert_vals.append(forma_pagamento)
+            allowed_formas = ['dinheiro', 'debito', 'credito', 'pix', 'prazo']
+            if forma_pagamento in allowed_formas:
+                insert_cols.append('forma_pagamento'); insert_vals.append(forma_pagamento)
+        
+        # Validate data_vencimento
         if data_vencimento:
-            insert_cols.append('data_vencimento'); insert_vals.append(data_vencimento)
+            if validate_date(data_vencimento):
+                insert_cols.append('data_vencimento'); insert_vals.append(data_vencimento)
 
         cols_sql = ','.join(insert_cols)
         qmarks = ','.join('?' for _ in insert_vals)
@@ -1065,14 +1370,6 @@ def estornar_venda(id_venda):
     
     try:
         # Verificar se venda existe
-        cur.execute("PRAGMA table_info('vendas')")
-        vcols = [r['name'] for r in cur.fetchall()]
-        
-        # Adicionar coluna status se não existir
-        if 'status' not in vcols:
-            cur.execute('ALTER TABLE vendas ADD COLUMN status TEXT DEFAULT "ativa"')
-            conn.commit()
-        
         cur.execute("SELECT * FROM vendas WHERE id_venda=?", (id_venda,))
         venda = cur.fetchone()
         if not venda:
@@ -1391,9 +1688,11 @@ def criar_fornecedor():
         conn.close()
         return jsonify({'mensagem': 'Fornecedor criado', 'id_fornecedor': fornecedor_id}), 201
     except sqlite3.IntegrityError:
+        conn.rollback()
         conn.close()
         return jsonify({'erro': 'CNPJ já cadastrado'}), 400
     except Exception as e:
+        conn.rollback()
         conn.close()
         return jsonify({'erro': str(e)}), 500
 
@@ -1437,6 +1736,7 @@ def atualizar_fornecedor(id_fornecedor):
         conn.close()
         return jsonify({'mensagem': 'Fornecedor atualizado'})
     except Exception as e:
+        conn.rollback()
         conn.close()
         return jsonify({'erro': str(e)}), 500
 
@@ -1454,6 +1754,7 @@ def deletar_fornecedor(id_fornecedor):
         conn.close()
         return jsonify({'mensagem': 'Fornecedor removido'})
     except sqlite3.IntegrityError:
+        conn.rollback()
         conn.close()
         return jsonify({'erro': 'Fornecedor possui registros vinculados'}), 400
 
@@ -1752,6 +2053,7 @@ def criar_conta_pagar():
         
         return jsonify({'mensagem': 'Conta a pagar criada', 'id_conta': conta_id}), 201
     except Exception as e:
+        conn.rollback()
         conn.close()
         return jsonify({'erro': str(e)}), 500
 
@@ -1907,6 +2209,7 @@ def criar_conta_receber():
         
         return jsonify({'mensagem': 'Conta a receber criada', 'id_conta': conta_id}), 201
     except Exception as e:
+        conn.rollback()
         conn.close()
         return jsonify({'erro': str(e)}), 500
 
@@ -2013,17 +2316,6 @@ def fluxo_caixa_page():
 @app.route('/api/fluxo_caixa', methods=['GET'])
 def listar_fluxo_caixa():
     conn = get_db()
-    
-    # Garantir que a coluna 'categoria' existe
-    cur = conn.execute("PRAGMA table_info('fluxo_caixa')")
-    cols = [r['name'] for r in cur.fetchall()]
-    if 'categoria' not in cols:
-        try:
-            conn.execute('ALTER TABLE fluxo_caixa ADD COLUMN categoria TEXT')
-            conn.commit()
-        except Exception:
-            pass
-    
     data_inicio = request.args.get('data_inicio')
     data_fim = request.args.get('data_fim')
     tipo = request.args.get('tipo')
@@ -2110,6 +2402,7 @@ def criar_fluxo_caixa():
         
         return jsonify({'mensagem': 'Movimentação criada', 'id_movimentacao': id_movimentacao}), 201
     except Exception as e:
+        conn.rollback()
         conn.close()
         return jsonify({'erro': str(e)}), 500
 
@@ -2125,6 +2418,7 @@ def excluir_fluxo_caixa(id_movimentacao):
         
         return jsonify({'mensagem': 'Movimentação excluída'})
     except Exception as e:
+        conn.rollback()
         conn.close()
         return jsonify({'erro': str(e)}), 500
 
@@ -2272,6 +2566,7 @@ def criar_inventario():
         
         return jsonify({'mensagem': 'Inventário criado', 'id_inventario': inventario_id}), 201
     except Exception as e:
+        conn.rollback()
         conn.close()
         return jsonify({'erro': str(e)}), 500
 
@@ -2316,6 +2611,7 @@ def atualizar_item_inventario(id_inventario, id_item):
         
         return jsonify({'mensagem': 'Item atualizado', 'diferenca': diferenca})
     except Exception as e:
+        conn.rollback()
         conn.close()
         return jsonify({'erro': str(e)}), 500
 
@@ -2399,6 +2695,7 @@ def excluir_inventario(id_inventario):
         
         return jsonify({'mensagem': 'Inventário excluído com sucesso'})
     except Exception as e:
+        conn.rollback()
         conn.close()
         return jsonify({'erro': str(e)}), 500
 
@@ -2542,18 +2839,19 @@ if __name__ == '__main__':
     
     # Mostrar informações de acesso local
     local_ip = get_local_ip()
-    print(f"{Fore.CYAN}{Style.BRIGHT}╔" + "═" * 68 + f"╗{Style.RESET_ALL}")
-    print(f"{Fore.CYAN}║{Fore.WHITE}{Style.BRIGHT}                     🏠 ACESSO NA REDE LOCAL                       {Fore.CYAN}║{Style.RESET_ALL}")
-    print(f"{Fore.CYAN}{Style.BRIGHT}╠" + "═" * 68 + f"╣{Style.RESET_ALL}")
-    print(f"{Fore.CYAN}║  {Fore.WHITE}💻 Neste computador:{Style.RESET_ALL}  {Fore.YELLOW}{Style.BRIGHT}http://127.0.0.1:5000{Style.RESET_ALL}" + " " * 20 + f"{Fore.CYAN}║{Style.RESET_ALL}")
-    print(f"{Fore.CYAN}║  {Fore.WHITE}📱 Outros dispositivos:{Style.RESET_ALL} {Fore.YELLOW}{Style.BRIGHT}http://{local_ip}:5000{Style.RESET_ALL}" + " " * (27 - len(local_ip)) + f"{Fore.CYAN}║{Style.RESET_ALL}")
-    print(f"{Fore.CYAN}{Style.BRIGHT}╚" + "═" * 68 + f"╝{Style.RESET_ALL}")
+    print(f"{Fore.CYAN}{Style.BRIGHT}" + "=" * 70 + f"{Style.RESET_ALL}")
+    print(f"{Fore.WHITE}{Style.BRIGHT}                 ACESSO NA REDE LOCAL{Style.RESET_ALL}")
+    print(f"{Fore.CYAN}{Style.BRIGHT}" + "=" * 70 + f"{Style.RESET_ALL}")
+    print(f"  {Fore.WHITE}Neste computador:{Style.RESET_ALL}  {Fore.YELLOW}{Style.BRIGHT}http://127.0.0.1:5000{Style.RESET_ALL}")
+    print(f"  {Fore.WHITE}Outros dispositivos:{Style.RESET_ALL} {Fore.YELLOW}{Style.BRIGHT}http://{local_ip}:5000{Style.RESET_ALL}")
+    print(f"{Fore.CYAN}{Style.BRIGHT}" + "=" * 70 + f"{Style.RESET_ALL}")
     
-    print(f"\n{Fore.GREEN}{Style.BRIGHT}✅ Sistema inicializado com sucesso!{Style.RESET_ALL}")
+    print(f"\n{Fore.GREEN}{Style.BRIGHT}Sistema inicializado com sucesso!{Style.RESET_ALL}")
     print(f"{Fore.WHITE}   MANTENHA ESTA JANELA ABERTA enquanto usa o sistema.{Style.RESET_ALL}")
     print(f"{Fore.YELLOW}   Para fechar: pressione Ctrl+C ou feche esta janela.{Style.RESET_ALL}\n")
-    print(f"{Fore.CYAN}{Style.BRIGHT}" + "═" * 70 + f"{Style.RESET_ALL}\n")
+    print(f"{Fore.CYAN}{Style.BRIGHT}" + "=" * 70 + f"{Style.RESET_ALL}\n")
     
     # Desabilitar reloader para evitar múltiplas instâncias do ngrok
-    # Mantém debug para desenvolvimento mas sem recarregar automaticamente
-    app.run(host='0.0.0.0', port=5000, debug=True, use_reloader=False)
+    # Debug desativado por padrão; habilite com FLASK_DEBUG=1 se necessário
+    debug_mode = os.getenv('FLASK_DEBUG', '0') == '1'
+    app.run(host='0.0.0.0', port=5000, debug=debug_mode, use_reloader=False)

@@ -3,18 +3,89 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Erro - Sistema de Estoque</title>
+    <title>Erro - JM Tabacaria</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            background: linear-gradient(135deg, #1e293b 0%, #334155 100%);
+            font-family: 'Inter', sans-serif;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .error-container {
+            background: white;
+            border-radius: 20px;
+            padding: 3rem;
+            max-width: 500px;
+            width: 90%;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            text-align: center;
+        }
+        
+        .error-logo {
+            width: 80px;
+            height: 80px;
+            margin: 0 auto 1.5rem;
+            background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 3rem;
+        }
+        
+        .error-container h1 {
+            color: #1e293b;
+            font-family: 'Poppins', sans-serif;
+            font-size: 1.8rem;
+            margin-bottom: 1rem;
+            font-weight: 600;
+        }
+        
+        .error-message {
+            color: #64748b;
+            font-size: 1rem;
+            margin-bottom: 2rem;
+            line-height: 1.6;
+        }
+        
+        .btn-primary {
+            display: inline-block;
+            padding: 0.75rem 2rem;
+            background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%);
+            color: white;
+            text-decoration: none;
+            border-radius: 12px;
+            font-weight: 500;
+            transition: all 0.3s;
+            box-shadow: 0 4px 15px rgba(99, 102, 241, 0.3);
+        }
+        
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(99, 102, 241, 0.4);
+        }
+        
+        .logo-image {
+            max-width: 120px;
+            margin-bottom: 1rem;
+        }
+    </style>
 </head>
 <body>
-    <div class="container">
-        <div class="error-container">
-            <img src="{{ url_for('static', filename='images/Logo_tabacaria.png') }}" alt="Logo" class="logo">
-            <h1>Oops! Algo deu errado</h1>
-            <p class="error-message">{{ error }}</p>
-            <div class="error-actions">
-                <a href="{{ url_for('index') }}" class="btn btn-primary">Voltar ao Início</a>
-            </div>
+    <div class="error-container">
+        <img src="{{ url_for('static', filename='images/Logo_tabacaria.png') }}" alt="Logo" class="logo-image" onerror="this.style.display='none'">
+        <div class="error-logo">⚠️</div>
+        <h1>Oops! Algo deu errado</h1>
+        <p class="error-message">{{ error if error else 'Erro interno do servidor' }}</p>
+        <div class="error-actions">
+            <a href="/" class="btn btn-primary">Voltar ao Início</a>
         </div>
     </div>
 </body>

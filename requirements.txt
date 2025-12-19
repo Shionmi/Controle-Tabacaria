@@ -4,3 +4,7 @@ Pillow>=9.0
 reportlab>=4.0
 pyngrok>=6.0.0
 colorama>=0.4.6
+svglib>=1.5.1
+Flask-Login>=0.6.2
+Flask-WTF>=1.1.1
+email-validator>=2.0.0

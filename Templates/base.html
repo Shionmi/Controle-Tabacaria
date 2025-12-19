@@ -7,9 +7,13 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
     <!-- Inter & Poppins fonts (Modern & Clean) -->
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="icon" type="image/png" href="{{ url_for('static', filename='Images/Logo_tabacaria.png') }}">
-    <link rel="apple-touch-icon" href="{{ url_for('static', filename='Images/Logo_tabacaria.png') }}">
+    <link rel="icon" type="image/png" href="{{ url_for('static', filename='images/Logo_tabacaria.png') }}">
+    <link rel="apple-touch-icon" href="{{ url_for('static', filename='images/Logo_tabacaria.png') }}">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- CSRF Token for AJAX requests -->
+    <meta name="csrf-token" content="{{ csrf_token() }}">
+    
     <style>
         /* Mobile Optimizations for Modals (Bottom Sheet Style) */
         @media (max-width: 768px) {
@@ -132,27 +136,37 @@
                 <i class="fas fa-home"></i> Início
             </a>
             
-            <a href="/estoque" class="nav-item {% if request.endpoint == 'estoque' %}active{% endif %}">
-                <i class="fas fa-box-open"></i> Estoque
-            </a>
+            <div class="nav-group-header" onclick="toggleNavGroup(this)">
+                <span>Operações</span>
+                <i class="fas fa-chevron-down"></i>
+            </div>
+            <div class="nav-group-content">
+                <a href="/estoque" class="nav-item {% if request.endpoint == 'estoque' %}active{% endif %}">
+                    <i class="fas fa-box-open"></i> Estoque
+                </a>
+                <a href="/venda" class="nav-item {% if request.endpoint == 'venda' %}active{% endif %}">
+                    <i class="fas fa-shopping-cart"></i> Nova Venda
+                </a>
+                <a href="/movimentacoes" class="nav-item {% if request.endpoint == 'movimentacoes_page' %}active{% endif %}">
+                    <i class="fas fa-exchange-alt"></i> Movimentações
+                </a>
+            </div>
             
-            <a href="/venda" class="nav-item {% if request.endpoint == 'venda' %}active{% endif %}">
-                <i class="fas fa-shopping-cart"></i> Nova Venda
-            </a>
-            
-            <a href="/movimentacoes" class="nav-item {% if request.endpoint == 'movimentacoes_page' %}active{% endif %}">
-                <i class="fas fa-exchange-alt"></i> Movimentações
-            </a>
-            
-            <div class="nav-group">
-                <span class="nav-group-title">Consultas</span>
+            <div class="nav-group-header" onclick="toggleNavGroup(this)">
+                <span>Consultas</span>
+                <i class="fas fa-chevron-down"></i>
+            </div>
+            <div class="nav-group-content">
                 <a href="/clientes" class="nav-item {% if request.endpoint == 'listar_clientes' %}active{% endif %}">
                     <i class="fas fa-users"></i> Clientes
                 </a>
             </div>
 
-            <div class="nav-group">
-                <span class="nav-group-title">Compras</span>
+            <div class="nav-group-header" onclick="toggleNavGroup(this)">
+                <span>Compras</span>
+                <i class="fas fa-chevron-down"></i>
+            </div>
+            <div class="nav-group-content">
                 <a href="/fornecedores" class="nav-item {% if request.endpoint == 'fornecedores_page' %}active{% endif %}">
                     <i class="fas fa-truck"></i> Fornecedores
                 </a>
@@ -161,8 +175,11 @@
                 </a>
             </div>
 
-            <div class="nav-group">
-                <span class="nav-group-title">Financeiro</span>
+            <div class="nav-group-header" onclick="toggleNavGroup(this)">
+                <span>Financeiro</span>
+                <i class="fas fa-chevron-down"></i>
+            </div>
+            <div class="nav-group-content">
                 <a href="/dashboard_financeiro" class="nav-item {% if request.endpoint == 'dashboard_financeiro' %}active{% endif %}">
                     <i class="fas fa-chart-line"></i> Dashboard
                 </a>
@@ -177,8 +194,11 @@
                 </a>
             </div>
 
-            <div class="nav-group">
-                <span class="nav-group-title">Gestão</span>
+            <div class="nav-group-header" onclick="toggleNavGroup(this)">
+                <span>Gestão</span>
+                <i class="fas fa-chevron-down"></i>
+            </div>
+            <div class="nav-group-content">
                 <a href="/inventario" class="nav-item {% if request.endpoint == 'inventario_page' %}active{% endif %}">
                     <i class="fas fa-clipboard-list"></i> Inventário
                 </a>
@@ -189,6 +209,32 @@
         </nav>
 
         <main class="main-content">
+            <header class="top-bar">
+                <div class="user-menu">
+                    <div class="user-info" onclick="toggleUserMenu()">
+                        <span class="user-name">{{ current_user.username }}</span>
+                        <div class="user-avatar-small" style="{% if current_user.color %}background-color: {{ current_user.color }};{% endif %}">
+                            {% if current_user.avatar == 'bull-custom' %}
+                                <i class="fa-bull-custom"></i>
+                            {% elif current_user.avatar and current_user.avatar != 'default' %}
+                                <i class="fas fa-{{ current_user.avatar }}"></i>
+                            {% else %}
+                                <i class="fas fa-user"></i>
+                            {% endif %}
+                        </div>
+                    </div>
+                    <div class="user-dropdown" id="userDropdown">
+                        <div class="dropdown-header">
+                            <strong>{{ current_user.username }}</strong>
+                            <small>Administrador</small>
+                        </div>
+                        <a href="{{ url_for('profile') }}"><i class="fas fa-user-circle"></i> Meu Perfil</a>
+                        <a href="#" onclick="checkUpdates(); return false;"><i class="fas fa-sync-alt"></i> Atualizações</a>
+                        <div class="dropdown-divider"></div>
+                        <a href="{{ url_for('logout') }}" class="text-danger"><i class="fas fa-sign-out-alt"></i> Sair</a>
+                    </div>
+                </div>
+            </header>
             {% block content %}{% endblock %}
         </main>
     </div>
@@ -202,7 +248,132 @@
         </div>
     </div>
 
+    <!-- Update Modal -->
+    <div id="updateModal" class="modal">
+        <div class="modal-content" style="max-width: 400px; text-align: center;">
+            <div class="modal-header">
+                <h3>Atualização de Sistema</h3>
+                <span class="close-modal" onclick="closeUpdateModal()">&times;</span>
+            </div>
+            <div class="modal-body" id="updateModalBody">
+                <div id="updateChecking">
+                    <i class="fas fa-circle-notch fa-spin fa-3x" style="color: var(--accent-primary); margin-bottom: 1rem;"></i>
+                    <p>Verificando atualizações...</p>
+                </div>
+                <div id="updateAvailable" style="display: none;">
+                    <i class="fas fa-cloud-download-alt fa-3x" style="color: var(--accent-success); margin-bottom: 1rem;"></i>
+                    <p>Nova versão disponível!</p>
+                    <p class="text-muted small" id="updateDetails"></p>
+                    <button class="btn btn-primary" onclick="performUpdate()" style="margin-top: 1rem; width: 100%;">Atualizar Agora</button>
+                </div>
+                <div id="updateNone" style="display: none;">
+                    <i class="fas fa-check-circle fa-3x" style="color: var(--text-muted); margin-bottom: 1rem;"></i>
+                    <p>Seu sistema está atualizado.</p>
+                </div>
+                <div id="updateError" style="display: none;">
+                    <i class="fas fa-exclamation-triangle fa-3x" style="color: var(--accent-danger); margin-bottom: 1rem;"></i>
+                    <p>Erro ao verificar atualizações.</p>
+                    <p class="text-muted small" id="updateErrorMsg"></p>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <script>
+        function closeUpdateModal() {
+            document.getElementById('updateModal').style.display = 'none';
+        }
+
+        function checkUpdates() {
+            const modal = document.getElementById('updateModal');
+            const body = document.getElementById('updateModalBody');
+            
+            // Reset views
+            document.getElementById('updateChecking').style.display = 'block';
+            document.getElementById('updateAvailable').style.display = 'none';
+            document.getElementById('updateNone').style.display = 'none';
+            document.getElementById('updateError').style.display = 'none';
+            
+            modal.style.display = 'flex';
+            
+            fetch('/api/check_updates')
+                .then(response => response.json())
+                .then(data => {
+                    document.getElementById('updateChecking').style.display = 'none';
+                    
+                    if (data.error) {
+                        document.getElementById('updateError').style.display = 'block';
+                        document.getElementById('updateErrorMsg').textContent = data.details || data.error;
+                        return;
+                    }
+                    
+                    if (data.update_available) {
+                        document.getElementById('updateAvailable').style.display = 'block';
+                        document.getElementById('updateDetails').textContent = `${data.commits} commit(s) atrás da versão mais recente.`;
+                    } else {
+                        document.getElementById('updateNone').style.display = 'block';
+                    }
+                })
+                .catch(err => {
+                    document.getElementById('updateChecking').style.display = 'none';
+                    document.getElementById('updateError').style.display = 'block';
+                    document.getElementById('updateErrorMsg').textContent = 'Erro de conexão.';
+                });
+        }
+
+        function performUpdate() {
+            const btn = document.querySelector('#updateAvailable button');
+            const originalText = btn.textContent;
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fas fa-circle-notch fa-spin"></i> Atualizando...';
+            
+            const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+            
+            fetch('/api/perform_update', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': csrfToken
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    alert(data.message);
+                    location.reload();
+                } else {
+                    alert('Erro ao atualizar: ' + (data.details || data.error));
+                    btn.disabled = false;
+                    btn.textContent = originalText;
+                }
+            })
+            .catch(err => {
+                alert('Erro de conexão ao tentar atualizar.');
+                btn.disabled = false;
+                btn.textContent = originalText;
+            });
+        }
+
+        function toggleNavGroup(header) {
+            header.classList.toggle('collapsed');
+            const content = header.nextElementSibling;
+            content.classList.toggle('collapsed');
+        }
+
+        function toggleUserMenu() {
+            const menu = document.getElementById('userDropdown');
+            menu.classList.toggle('active');
+        }
+
+        // Close dropdown when clicking outside
+        document.addEventListener('click', function(event) {
+            const menu = document.getElementById('userDropdown');
+            const userInfo = document.querySelector('.user-info');
+            if (!userInfo.contains(event.target) && !menu.contains(event.target)) {
+                menu.classList.remove('active');
+            }
+        });
+
         // --- Mobile Bubble Menu Functions (Global) ---
         function showMobileActions(row) {
             const container = document.getElementById('mobileActionContainer');

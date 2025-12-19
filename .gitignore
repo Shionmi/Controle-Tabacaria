@@ -1,24 +1,64 @@
 # JM Tabacaria - Arquivos do Sistema
-*.db
-*.db-journal
-.venv/
+
+# Python
 __pycache__/
 *.pyc
 *.pyo
 *.pyd
-.Python
+*.py[cod]
+*$py.class
 *.so
 *.egg
 *.egg-info/
-dist/
-build/
-.env
-.vscode/
-.idea/
-*.log
+.Python
+
+# Virtual Environment
+.venv/
+venv/
+ENV/
+env/
+
+# Database
+*.db
+*.db-journal
+*.db.bak
+*.sqlite
+*.sqlite3
+estoque_tabacaria.db.bak
+
+# Security
+.secret_key
+
+# ngrok token
 .ngrok_token
+
+# Barcode images generated
 static/barcodes/*.png
 static/barcodes/*.jpg
-estoque_tabacaria.db.bak
+static/barcodes/*.svg
+
+# Build artifacts
+dist/
+build/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Environment and Logs
+.env
+*.log
+logs/
+
+# Backups
 *.bak
-e --continue
+*.backup
+

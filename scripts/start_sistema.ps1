@@ -3,53 +3,54 @@ $ErrorActionPreference = 'Stop'
 $scriptPath = Split-Path -Parent $MyInvocation.MyCommand.Definition
 $appRoot = Split-Path -Parent $scriptPath
 
-# --- CONFIGURAÇÃO DO NGROK (ACESSO PÚBLICO) ---
+# --- CONFIGURAÇÃO DO NGROK (ACESSO PÚBLICO) - DESABILITADO POR SEGURANÇA ---
 Write-Host ""
 Write-Host "============================================" -ForegroundColor Cyan
-Write-Host "   CONFIGURAÇÃO DE ACESSO REMOTO (ngrok)" -ForegroundColor Cyan
+Write-Host "   ACESSO REMOTO (ngrok) - DESABILITADO" -ForegroundColor Yellow
 Write-Host "============================================" -ForegroundColor Cyan
 Write-Host ""
+Write-Host "Por seguranca, o acesso remoto via ngrok esta DESABILITADO." -ForegroundColor Yellow
+Write-Host "O sistema funcionara apenas na rede local." -ForegroundColor Green
+Write-Host ""
+Write-Host "Para habilitar acesso remoto (NAO RECOMENDADO):" -ForegroundColor White
+Write-Host "  1. Configure ENABLE_NGROK=1 antes de iniciar" -ForegroundColor White
+Write-Host "  2. Obtenha um token em: https://dashboard.ngrok.com" -ForegroundColor White
+Write-Host ""
 
-$ngrokConfigFile = "$appRoot\.ngrok_token"
-
-# Verificar se já tem token salvo
-if (-not (Test-Path $ngrokConfigFile)) {
-    Write-Host "Para permitir acesso pelo celular de qualquer lugar," -ForegroundColor Yellow
-    Write-Host "precisamos configurar o ngrok (tunnel publico)." -ForegroundColor Yellow
-    Write-Host ""
-    Write-Host "PASSO 1: Acesse https://dashboard.ngrok.com/signup" -ForegroundColor White
-    Write-Host "PASSO 2: Crie uma conta gratuita (pode usar GitHub)" -ForegroundColor White
-    Write-Host "PASSO 3: Copie seu authtoken em: https://dashboard.ngrok.com/get-started/your-authtoken" -ForegroundColor White
+$enableNgrok = $env:ENABLE_NGROK
+if ($enableNgrok -eq "1") {
+    Write-Host "ATENCAO: Acesso remoto HABILITADO via variavel de ambiente!" -ForegroundColor Red
     Write-Host ""
     
-    $token = Read-Host "Cole aqui seu ngrok authtoken"
+    $ngrokConfigFile = "$appRoot\.ngrok_token"
     
-    if ($token -and $token.Trim() -ne "") {
-        # Salvar token em arquivo oculto
-        $token.Trim() | Out-File -FilePath $ngrokConfigFile -Encoding utf8
+    # Verificar se já tem token salvo
+    if (-not (Test-Path $ngrokConfigFile)) {
+        Write-Host "Token ngrok nao encontrado. Configure em:" -ForegroundColor Yellow
+        Write-Host "  https://dashboard.ngrok.com/get-started/your-authtoken" -ForegroundColor White
         Write-Host ""
-        Write-Host "Token salvo com sucesso!" -ForegroundColor Green
-        Write-Host ""
+        
+        $token = Read-Host "Cole aqui seu ngrok authtoken (ou Enter para pular)"
+        
+        if ($token -and $token.Trim() -ne "") {
+            $token.Trim() | Out-File -FilePath $ngrokConfigFile -Encoding utf8
+            Write-Host "Token salvo com sucesso!" -ForegroundColor Green
+        }
     } else {
-        Write-Host ""
-        Write-Host "Token nao fornecido. Sistema funcionara apenas localmente." -ForegroundColor Yellow
-        Write-Host ""
+        $token = Get-Content $ngrokConfigFile -Raw
+        $token = $token.Trim()
+        Write-Host "Token ngrok encontrado!" -ForegroundColor Green
     }
-} else {
-    $token = Get-Content $ngrokConfigFile -Raw
-    $token = $token.Trim()
-    Write-Host "Token ngrok ja configurado!" -ForegroundColor Green
-    Write-Host ""
-}
-
-# Configurar ngrok se tiver token
-if ($token -and $token.Trim() -ne "") {
-    Write-Host "Configurando ngrok..." -ForegroundColor Cyan
-    try {
-        & "$appRoot\.venv\Scripts\ngrok.exe" config add-authtoken $token 2>&1 | Out-Null
-        Write-Host "Ngrok configurado com sucesso!" -ForegroundColor Green
-    } catch {
-        Write-Host "Aviso: Erro ao configurar ngrok: $_" -ForegroundColor Yellow
+    
+    # Configurar ngrok se tiver token
+    if ($token -and $token.Trim() -ne "") {
+        Write-Host "Configurando ngrok..." -ForegroundColor Cyan
+        try {
+            & "$appRoot\.venv\Scripts\ngrok.exe" config add-authtoken $token 2>&1 | Out-Null
+            Write-Host "Ngrok configurado!" -ForegroundColor Green
+        } catch {
+            Write-Host "Aviso: Erro ao configurar ngrok: $_" -ForegroundColor Yellow
+        }
     }
 }
 

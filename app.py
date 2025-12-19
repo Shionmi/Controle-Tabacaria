@@ -2865,11 +2865,18 @@ if __name__ == '__main__':
                 
         if browser_path:
             try:
+                # --app: Abre em modo aplicativo (sem barra de endereço)
+                # --start-maximized: Inicia maximizado
                 # --new-window: Garante nova janela
-                # --start-fullscreen: Inicia em tela cheia (F11)
-                subprocess.Popen([browser_path, '--new-window', '--start-fullscreen', url])
+                subprocess.Popen(
+                    [browser_path, f'--app={url}', '--start-maximized', '--new-window'],
+                    stdout=subprocess.DEVNULL,
+                    stderr=subprocess.DEVNULL,
+                    stdin=subprocess.DEVNULL
+                )
                 return
-            except Exception:
+            except Exception as e:
+                # Se falhar, tenta apenas abrir a URL
                 pass
         
         # Fallback para navegador padrão
